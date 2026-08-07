@@ -51,6 +51,23 @@ def _vertebra_sort_key(name: str) -> tuple:
     return (_REGION_RANK.get(m.group(1).upper(), 98), int(m.group(2)))
 
 
+def voxel_volume_mm3(affine: np.ndarray) -> float:
+    """Physical volume of one voxel in mm^3 (|det| of the affine's 3x3 block)."""
+    return float(abs(np.linalg.det(affine[:3, :3])))
+
+
+def resolve_min_voxels(affine: np.ndarray, min_size_mm3: float, min_voxels: int) -> int:
+    """Convert a physical fragment threshold to voxels for this file's spacing.
+
+    Scans differ in voxel size (e.g. thin-slice vs thick-slice CT), so a fixed
+    voxel count means a different physical volume per scan. When min_size_mm3
+    is positive it takes precedence; min_voxels is the spacing-blind fallback.
+    """
+    if min_size_mm3 > 0:
+        return max(1, int(round(min_size_mm3 / voxel_volume_mm3(affine))))
+    return min_voxels
+
+
 def keep_largest_component(mask: np.ndarray) -> np.ndarray:
     """Keep only the largest 26-connected component of a binary mask."""
     if not mask.any():
@@ -107,7 +124,8 @@ def flag_ordering(centroids_world_si: dict) -> list:
     return violations
 
 
-def process_case_permask(seg_dir: Path, out_dir: Path, min_voxels: int, closing_iters: int) -> None:
+def process_case_permask(seg_dir: Path, out_dir: Path, min_size_mm3: float,
+                         min_voxels: int, closing_iters: int) -> None:
     """Clean every vertebrae_*.nii.gz mask in a TotalSegmentator-style folder."""
     vert_files = sorted(
         (p for p in seg_dir.glob("*.nii.gz") if p.name.lower().startswith("vertebrae")),
@@ -119,13 +137,19 @@ def process_case_permask(seg_dir: Path, out_dir: Path, min_voxels: int, closing_
 
     out_dir.mkdir(parents=True, exist_ok=True)
     centroids = {}
+    threshold_logged = False
     for f in vert_files:
         img = nib.load(str(f))
+        min_vox = resolve_min_voxels(img.affine, min_size_mm3, min_voxels)
+        if not threshold_logged:
+            logger.info("%s: voxel=%.2f mm^3, fragment threshold=%d voxels",
+                        seg_dir.parent.name, voxel_volume_mm3(img.affine), min_vox)
+            threshold_logged = True
         mask = np.asarray(img.dataobj) > 0
         if not mask.any():
             logger.info("%s empty, skipped", f.name)
             continue
-        cleaned = clean_binary_mask(mask, min_voxels, closing_iters)
+        cleaned = clean_binary_mask(mask, min_vox, closing_iters)
         out_img = nib.Nifti1Image(cleaned.astype(np.uint8), img.affine, img.header)
         nib.save(out_img, str(out_dir / f.name))
         if cleaned.any():
@@ -137,9 +161,13 @@ def process_case_permask(seg_dir: Path, out_dir: Path, min_voxels: int, closing_
         logger.warning("%s breaks superior-inferior ordering (review manually)", name)
 
 
-def process_case_combined(seg_path: Path, out_path: Path, labels, min_voxels: int, closing_iters: int) -> None:
+def process_case_combined(seg_path: Path, out_path: Path, labels, min_size_mm3: float,
+                          min_voxels: int, closing_iters: int) -> None:
     """Clean a set of vertebra labels inside one combined multi-label map."""
     img = nib.load(str(seg_path))
+    min_vox = resolve_min_voxels(img.affine, min_size_mm3, min_voxels)
+    logger.info("%s: voxel=%.2f mm^3, fragment threshold=%d voxels",
+                seg_path.parent.name, voxel_volume_mm3(img.affine), min_vox)
     seg = np.asarray(img.dataobj)
     out = seg.copy()
     for label in labels:
@@ -147,7 +175,7 @@ def process_case_combined(seg_path: Path, out_path: Path, labels, min_voxels: in
         if not mask.any():
             continue
         out[mask] = 0  # clear, then write back only the cleaned voxels
-        out[clean_binary_mask(mask, min_voxels, closing_iters)] = label
+        out[clean_binary_mask(mask, min_vox, closing_iters)] = label
     out_path.parent.mkdir(parents=True, exist_ok=True)
     nib.save(nib.Nifti1Image(out.astype(seg.dtype), img.affine, img.header), str(out_path))
 
@@ -156,13 +184,13 @@ def process_case(case: Path, out_root: Path, args) -> None:
     seg_dir = case / "segmentations"
     if seg_dir.is_dir():
         process_case_permask(seg_dir, out_root / case.name / "segmentations",
-                             args.min_voxels, args.closing_iters)
+                             args.min_size_mm3, args.min_voxels, args.closing_iters)
         return
     combined = case / args.seg_name
     if combined.exists():
         labels = [int(x) for x in args.labels.split(",")] if args.labels else list(range(1, 26))
         process_case_combined(combined, out_root / case.name / args.seg_name, labels,
-                              args.min_voxels, args.closing_iters)
+                              args.min_size_mm3, args.min_voxels, args.closing_iters)
         return
     logger.warning("Skipping %s: no segmentations/ folder and no %s", case.name, args.seg_name)
 
@@ -175,8 +203,12 @@ def main() -> None:
                         help="Combined multi-label filename (combined-map layout only).")
     parser.add_argument("--labels", default="",
                         help="Comma-separated vertebra label ids for the combined map.")
+    parser.add_argument("--min_size_mm3", type=float, default=500.0,
+                        help="Drop fragments smaller than this physical volume (mm^3); "
+                             "converted per file using its voxel spacing. Set <=0 to "
+                             "fall back to the raw --min_voxels count.")
     parser.add_argument("--min_voxels", type=int, default=200,
-                        help="Drop connected components smaller than this.")
+                        help="Spacing-blind fallback threshold, used when --min_size_mm3<=0.")
     parser.add_argument("--closing_iters", type=int, default=1,
                         help="Binary-closing iterations (0 disables).")
     args = parser.parse_args()

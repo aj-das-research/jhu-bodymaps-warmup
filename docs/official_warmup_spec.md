@@ -7,7 +7,17 @@ Source: the "here" link in Call4Research.pdf (https://www.cs.jhu.edu/~zongwei/ad
 wget http://www.cs.jhu.edu/~zongwei/dataset/AbdomenAtlasDemo.tar.gz
 tar -xzvf AbdomenAtlasDemo.tar.gz
 ```
-Layout: `AbdomenAtlasDemo/BDMAP_00000006/ct.nii.gz`, `AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz` (CT only; masks come from inference).
+The tutorial's tree shows only `ct.nii.gz` per case, but the actual archive also ships
+pre-existing AbdomenAtlas ORGAN annotations per case: `combined_labels.nii.gz` +
+`segmentations/` with 33 per-organ/tumor binary masks (liver, kidneys, aorta, femurs,
+lungs, pancreas + tumor masks, etc.). No vertebrae among them — vertebrae are generated
+by the model into `AbdomenAtlasDemoPredict`.
+
+IMPORTANT: two different `combined_labels.nii.gz` files will exist —
+- `data/AbdomenAtlasDemo/BDMAP_*/combined_labels.nii.gz` = shipped ORGAN labels
+- `AbdomenAtlasDemoPredict/BDMAP_*/combined_labels.nii.gz` = predicted VERTEBRA labels (the ones to refine)
+
+Cases: BDMAP_00000006 (ct 107 MB, 1394 axial slices, whole-torso), BDMAP_00000031 (ct 327 MB, larger volume, longer inference). Checkpoint: 719 MB.
 
 ## 1. Repo + checkpoint
 ```bash
@@ -32,9 +42,10 @@ python -W ignore inference.py --save_dir $savepath --checkpoint $pretrainpath \
 Output per case: `combined_labels.nii.gz` + `segmentations/vertebrae_{C1..C7,T1..T12,L1..L5}.nii.gz`.
 
 ## 4. Post-process (the graded part)
-Inspect `combined_labels.nii.gz` over `ct.nii.gz` in ITK-SNAP. The predictions contain many errors
-(fragments, holes, merged or mislabeled adjacent levels). Design automatic post-processing in a file
-named exactly `postprocessing_vertebrae.py` reducing as many errors as possible.
+Inspect the predicted vertebra `combined_labels.nii.gz` over `ct.nii.gz` in ITK-SNAP. The
+predictions contain many errors (fragments, holes, merged or mislabeled adjacent levels).
+Design automatic post-processing in a file named exactly `postprocessing_vertebrae.py`
+reducing as many errors as possible.
 
 Anatomy: C1-C7 (cervical), T1-T12 (thoracic), L1-L5 (lumbar); sacrum/coccyx are not labeled classes.
 

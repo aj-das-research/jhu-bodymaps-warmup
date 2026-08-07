@@ -34,8 +34,11 @@ audits vertebra errors, applies post-processing, and zips the refined folder.
 python postprocessing_vertebrae.py \
     --pred_dir AbdomenAtlasDemoPredict \
     --out_dir  AbdomenAtlasDemoPredict_refined \
-    --min_voxels 200 --closing_iters 1
+    --min_size_mm3 500 --closing_iters 1
 ```
+The fragment threshold is physical (mm^3) and converted per file from its voxel
+spacing, so thin-slice and thick-slice scans are treated consistently
+(`--min_size_mm3 <=0` falls back to the raw `--min_voxels` count).
 
 ## Submission checklist
 - [ ] refined `AbdomenAtlasDemoPredict` (compressed)
