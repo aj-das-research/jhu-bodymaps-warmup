@@ -1,0 +1,12 @@
+# Data and model weights are fetched by scripts/download_data.sh - never committed
+data/
+AbdomenAtlasDemo/
+AbdomenAtlasDemoPredict*/
+*.nii.gz
+*.tar.gz
+*.pth
+*.zip
+
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
