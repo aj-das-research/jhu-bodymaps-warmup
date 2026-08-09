@@ -1,0 +1,634 @@
+{
+ "case": "BDMAP_00000006",
+ "params": {
+  "bone_hu": 150.0,
+  "speck_mm3": 30.0,
+  "soft_bone_fraction": 0.5,
+  "near_mm": 5.0,
+  "corridor_pad_mm": 6.0,
+  "bridge_cap_mm3": 500.0,
+  "enclosure": 0.8,
+  "max_rel_to_host": 0.5,
+  "min_labeled_shell": 0.5,
+  "suspect_size_lo": 0.6,
+  "suspect_size_hi": 1.8,
+  "suspect_logres": 0.3,
+  "suspect_pool_frac": 0.2,
+  "band_gap_close": 3,
+  "profile_sigma_mm": 2.5,
+  "profile_radius_mm": 10.0,
+  "min_body_height_mm": 12.0,
+  "max_body_height_mm": 45.0,
+  "dp_beta": 2.0,
+  "pin_lo_mm": 8.0,
+  "pin_hi_mm": 35.0,
+  "seed_margin_mm": 3.0,
+  "seed_radius_mm": 14.0,
+  "halo_mm": 2.5,
+  "band_pad_mm": 4.0,
+  "sigma_mm": 1.2,
+  "max_dev_mm": 1.5,
+  "vol_tol": 0.01,
+  "min_dice": 0.97,
+  "smooth_pad_mm": 5.0,
+  "crop_margin_mm": 25.0
+ },
+ "records": [
+  {
+   "stage": 1,
+   "label": "L5",
+   "vol_mm3": 3.1,
+   "hu_mean": 450.5,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L5",
+   "vol_mm3": 24.4,
+   "hu_mean": 380.0,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L5",
+   "vol_mm3": 6.1,
+   "hu_mean": 327.5,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L5",
+   "vol_mm3": 6.1,
+   "hu_mean": 297.8,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L4",
+   "vol_mm3": 12.2,
+   "hu_mean": 257.8,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L4",
+   "vol_mm3": 12.2,
+   "hu_mean": 310.4,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "L1",
+   "vol_mm3": 67.1,
+   "hu_mean": 323.5,
+   "bone_fraction": 1.0,
+   "dist_to_main_mm": 5.0,
+   "action": "BRIDGED",
+   "bridge_added_mm3": 48.8
+  },
+  {
+   "stage": 1,
+   "label": "T11",
+   "vol_mm3": 6.1,
+   "hu_mean": 278.2,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "T11",
+   "vol_mm3": 48.8,
+   "hu_mean": 286.8,
+   "bone_fraction": 0.938,
+   "dist_to_main_mm": 22.69,
+   "action": "REMOVED_FAR_REASSIGN_CANDIDATE"
+  },
+  {
+   "stage": 1,
+   "label": "T6",
+   "vol_mm3": 6.1,
+   "hu_mean": 487.2,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "T5",
+   "vol_mm3": 12.2,
+   "hu_mean": 193.4,
+   "bone_fraction": 0.875,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C6",
+   "vol_mm3": 12.2,
+   "hu_mean": 199.1,
+   "bone_fraction": 0.875,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C3",
+   "vol_mm3": 6.1,
+   "hu_mean": 296.5,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C3",
+   "vol_mm3": 42.7,
+   "hu_mean": 516.9,
+   "bone_fraction": 1.0,
+   "dist_to_main_mm": 589.86,
+   "action": "REMOVED_FAR_REASSIGN_CANDIDATE"
+  },
+  {
+   "stage": 1,
+   "label": "C2",
+   "vol_mm3": 24.4,
+   "hu_mean": 256.1,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C2",
+   "vol_mm3": 140.4,
+   "hu_mean": 446.0,
+   "bone_fraction": 0.957,
+   "dist_to_main_mm": 4.0,
+   "action": "BRIDGED",
+   "bridge_added_mm3": 82.4
+  },
+  {
+   "stage": 1,
+   "label": "C2",
+   "vol_mm3": 18.3,
+   "hu_mean": 361.6,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C1",
+   "vol_mm3": 3.1,
+   "hu_mean": 258.0,
+   "bone_fraction": 1.0,
+   "action": "REMOVED_SPECK"
+  },
+  {
+   "stage": 1,
+   "label": "C1",
+   "vol_mm3": 94.6,
+   "hu_mean": 532.6,
+   "bone_fraction": 1.0,
+   "dist_to_main_mm": 5.0,
+   "action": "BRIDGED",
+   "bridge_added_mm3": 68.7
+  },
+  {
+   "stage": 1,
+   "label": "C1",
+   "vol_mm3": 216.7,
+   "hu_mean": 579.0,
+   "bone_fraction": 0.993,
+   "dist_to_main_mm": 5.0,
+   "action": "BRIDGED",
+   "bridge_added_mm3": 67.1
+  },
+  {
+   "stage": 1,
+   "label": "C1",
+   "vol_mm3": 677.5,
+   "hu_mean": 430.1,
+   "bone_fraction": 0.989,
+   "dist_to_main_mm": 624.77,
+   "action": "REMOVED_FAR_REASSIGN_CANDIDATE"
+  }
+ ],
+ "bands": [],
+ "flags": [
+  "ATLAS_AXIS_SKIP band=['C2']: no disc plane at C1/C2"
+ ],
+ "smooth": [
+  {
+   "label": "L5",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9752
+  },
+  {
+   "label": "L4",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9765
+  },
+  {
+   "label": "L3",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9755
+  },
+  {
+   "label": "L2",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.976
+  },
+  {
+   "label": "L1",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9742
+  },
+  {
+   "label": "T12",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9752
+  },
+  {
+   "label": "T11",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9771
+  },
+  {
+   "label": "T10",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9726
+  },
+  {
+   "label": "T9",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9721
+  },
+  {
+   "label": "T8",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9727
+  },
+  {
+   "label": "T7",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9691,
+   "reverted": true
+  },
+  {
+   "label": "T6",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9703
+  },
+  {
+   "label": "T5",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.965,
+   "reverted": true
+  },
+  {
+   "label": "T4",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9674,
+   "reverted": true
+  },
+  {
+   "label": "T3",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9673,
+   "reverted": true
+  },
+  {
+   "label": "T2",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.9662,
+   "reverted": true
+  },
+  {
+   "label": "T1",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.125,
+   "dice_vs_presmooth": 0.9705
+  },
+  {
+   "label": "C7",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.9607,
+   "reverted": true
+  },
+  {
+   "label": "C6",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.25,
+   "dice_vs_presmooth": 0.9554,
+   "reverted": true
+  },
+  {
+   "label": "C5",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.9542,
+   "reverted": true
+  },
+  {
+   "label": "C4",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.25,
+   "dice_vs_presmooth": 0.9562,
+   "reverted": true
+  },
+  {
+   "label": "C3",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.957,
+   "reverted": true
+  },
+  {
+   "label": "C2",
+   "holes_filled_mm3": 3.1,
+   "tau_mm": -0.188,
+   "dice_vs_presmooth": 0.9677,
+   "reverted": true
+  },
+  {
+   "label": "C1",
+   "holes_filled_mm3": 0.0,
+   "tau_mm": -0.25,
+   "dice_vs_presmooth": 0.9504,
+   "reverted": true
+  }
+ ],
+ "suspects": [
+  "C2"
+ ],
+ "audit_before": {
+  "n_fragmented": 10,
+  "n_empty": 0,
+  "n_size": 0,
+  "n_order": 1
+ },
+ "audit_after": {
+  "n_fragmented": 0,
+  "n_empty": 0,
+  "n_size": 0,
+  "n_order": 0
+ },
+ "audit_rows_after": [
+  {
+   "name": "vertebrae_C1",
+   "voxels": 9510,
+   "volume_cm3": 14.5,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -395.5793901156676,
+   "flags": []
+  },
+  {
+   "name": "vertebrae_C2",
+   "voxels": 12181,
+   "volume_cm3": 18.6,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -408.44971677202204,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.8
+  },
+  {
+   "name": "vertebrae_C3",
+   "voxels": 6755,
+   "volume_cm3": 10.3,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -422.17283493708373,
+   "flags": [],
+   "size_ratio_vs_neighbors": 0.87
+  },
+  {
+   "name": "vertebrae_C4",
+   "voxels": 7762,
+   "volume_cm3": 11.8,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -431.8122906467405,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.16
+  },
+  {
+   "name": "vertebrae_C5",
+   "voxels": 6680,
+   "volume_cm3": 10.2,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -441.3334580838323,
+   "flags": [],
+   "size_ratio_vs_neighbors": 0.89
+  },
+  {
+   "name": "vertebrae_C6",
+   "voxels": 7542,
+   "volume_cm3": 11.5,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -449.55906921241046,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.13
+  },
+  {
+   "name": "vertebrae_C7",
+   "voxels": 11689,
+   "volume_cm3": 17.8,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -458.79771580118063,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.55
+  },
+  {
+   "name": "vertebrae_T1",
+   "voxels": 13899,
+   "volume_cm3": 21.2,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -469.91035326282463,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.19
+  },
+  {
+   "name": "vertebrae_T2",
+   "voxels": 13317,
+   "volume_cm3": 20.3,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -479.5079222047008,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.01
+  },
+  {
+   "name": "vertebrae_T3",
+   "voxels": 13214,
+   "volume_cm3": 20.2,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -491.9501286514303,
+   "flags": [],
+   "size_ratio_vs_neighbors": 0.99
+  },
+  {
+   "name": "vertebrae_T4",
+   "voxels": 14286,
+   "volume_cm3": 21.8,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -508.2824793504129,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.08
+  },
+  {
+   "name": "vertebrae_T5",
+   "voxels": 15375,
+   "volume_cm3": 23.5,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -527.9492682926829,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.08
+  },
+  {
+   "name": "vertebrae_T6",
+   "voxels": 16366,
+   "volume_cm3": 25.0,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -549.4070634241721,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.06
+  },
+  {
+   "name": "vertebrae_T7",
+   "voxels": 17907,
+   "volume_cm3": 27.3,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -571.74663539398,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.09
+  },
+  {
+   "name": "vertebrae_T8",
+   "voxels": 19620,
+   "volume_cm3": 29.9,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -595.3630224260959,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.1
+  },
+  {
+   "name": "vertebrae_T9",
+   "voxels": 20430,
+   "volume_cm3": 31.2,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -618.8666177190406,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.04
+  },
+  {
+   "name": "vertebrae_T10",
+   "voxels": 24434,
+   "volume_cm3": 37.3,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -643.0934967668004,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.2
+  },
+  {
+   "name": "vertebrae_T11",
+   "voxels": 24914,
+   "volume_cm3": 38.0,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -668.0294814160713,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.02
+  },
+  {
+   "name": "vertebrae_T12",
+   "voxels": 28152,
+   "volume_cm3": 43.0,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -694.8417341574311,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.13
+  },
+  {
+   "name": "vertebrae_L1",
+   "voxels": 28877,
+   "volume_cm3": 44.1,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -721.4875852754788,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.03
+  },
+  {
+   "name": "vertebrae_L2",
+   "voxels": 31201,
+   "volume_cm3": 47.6,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -749.1920451267588,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.08
+  },
+  {
+   "name": "vertebrae_L3",
+   "voxels": 37368,
+   "volume_cm3": 57.0,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -780.7479795546992,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.2
+  },
+  {
+   "name": "vertebrae_L4",
+   "voxels": 38185,
+   "volume_cm3": 58.3,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -810.7992667277726,
+   "flags": [],
+   "size_ratio_vs_neighbors": 1.02
+  },
+  {
+   "name": "vertebrae_L5",
+   "voxels": 37805,
+   "volume_cm3": 57.7,
+   "components": 1,
+   "largest_fraction": 1.0,
+   "si_world": -833.9192567120751,
+   "flags": []
+  }
+ ]
+}

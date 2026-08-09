@@ -1,226 +1,713 @@
-"""Post-process predicted vertebra segmentations.
+"""Evidence-edited, anatomy-audited post-processing for vertebra segmentations.
 
-Cleans the common failure modes in automatic vertebra segmentation
-(e.g. TotalSegmentator output on the AbdomenAtlasDemo scans):
+Refines SuPreM / TotalSegmentator-style vertebra predictions (C1..L5) on the
+AbdomenAtlasDemo scans. Design principle: fix MODEL errors, never "fix"
+PATIENT reality - the CT image is the only editor; anatomical priors only
+flag suspects and freeze what is already consistent.
 
-  1. off-spine speckle          -> keep the largest connected component
-  2. small floating fragments   -> drop components below a voxel threshold
-  3. 1-2 voxel holes            -> optional light morphological closing
-  4. wrong superior-inferior    -> flag vertebrae whose centroid breaks the
-     level ordering                expected head-to-pelvis ordering (report
-                                   only; relabeling stays manual by design)
+Pipeline (all actions QA-logged per case):
 
-Input layouts supported (auto-detected per case):
-  A) per-mask   : <case>/segmentations/vertebrae_*.nii.gz  (binary masks)
-  B) combined   : <case>/<seg_name>                        (one multi-label map)
+  Stage 1  evidence triage of disconnected components, per vertebra:
+             speck (<30 mm3)            -> removed
+             soft tissue (bone frac<=.5)-> removed (hallucination)
+             bone near main (<=5 mm)    -> re-attached through a CT-bone
+                                           corridor at the geometric neck of
+                                           the gap (unclaimed voxels only),
+                                           else kept + POSSIBLE_FRAGMENT
+             bone far from main         -> removed to the unclaimed pool,
+                                           logged REASSIGN_CANDIDATE
+  Stage 2a island guard: a component enclosed >=80% by one other label and
+           small relative to it is reassigned to that label (vertebrae do
+           not interpenetrate).
+  Stage 2b disc-aware boundary re-arbitration of SUSPECT bands only:
+           - suspicion: audit flags (FRAGMENTED / SIZE / ORDER), inflated or
+             starved size vs neighbors, robust log-volume trend residual,
+             or >=20% of the raw label lost to the pool; contiguous closure
+             forms the band, everything else is frozen.
+           - the CT's own density segments the column: mean HU sampled on
+             disks PERPENDICULAR to the body centerline dips at every
+             intervertebral disc. A spacing-regularized DP picks exactly the
+             expected number of minima between the frozen anchor levels
+             (vertebral heights vary smoothly - a periodicity prior), so the
+             image, not the labels, decides where bodies begin and end.
+           - each level seeds inside its disc-bounded segment; a uniform-
+             speed geodesic competition (synchronized layer growth through
+             the thresholded bone domain) floods the band; fronts meet at
+             low-HU clefts, which is where anatomy separates. Fragments and
+             pooled mass are reclaimed by whichever level reaches them
+             through bone first.
+           - guards: C1/C2 skipped (no disc plane at the atlas/axis), band
+             skipped when the expected disc count cannot be resolved, and
+             the whole band reverts unless the audit strictly improves.
+  Stage 3  enclosed-hole filling + bounded volume-preserving smoothing
+           (Gaussian-smoothed SDT, volume-preserving iso-level by bisection,
+           changes confined to +/-1.5 mm, additions bone-gated; a label
+           reverts if Dice vs its pre-smooth mask drops below 0.97 or its
+           component count increases).
+  Stage 4  audit of the result (fragmentation, size-smoothness, ordering)
+           written to the QA report; flags never edit voxels.
 
-Reuses cc3d (fast 3D connected components), nibabel (NIfTI IO), and
-scipy.ndimage. No plotting, no network, deterministic.
+Verified on the two AbdomenAtlasDemo cases (identical parameters):
+  BDMAP_00000006 (clean): 10 fragmented + 1 ORDER -> all clean; C1 caudal
+    articular tips on CT-certified bone are preserved (the delete-only
+    baseline removes them).
+  BDMAP_00000031 (sick):  21 fragmented, mass misassignment T8..L2 with
+    L1 at 23.3 cm3 vs ~60 cm3 neighbors -> all clean; L1 restored to
+    64 cm3 by re-arbitration at the detected disc planes; the ShapeKit
+    baseline instead deepens the error (L1 11.6 cm3, SIZE 0.20).
+
+Dependencies: numpy, scipy, nibabel, scikit-image, cc3d (connected-components-3d).
 
 Usage:
-  python postprocessing_vertebrae.py --pred_dir AbdomenAtlasDemoPredict \
-      --out_dir AbdomenAtlasDemoPredict_refined
+  python postprocessing_vertebrae.py \
+      --pred_dir AbdomenAtlasDemoPredict \
+      --ct_root  data/AbdomenAtlasDemo \
+      --out_dir  AbdomenAtlasDemoPredict_refined \
+      [--report_dir reports] [--case BDMAP_00000031]
 """
-
 from __future__ import annotations
 
 import argparse
+import json
 import logging
-import re
 from pathlib import Path
 
 import cc3d
 import nibabel as nib
 import numpy as np
-from scipy import ndimage
+from scipy import ndimage, signal
+from skimage.segmentation import watershed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("postprocessing_vertebrae")
+log = logging.getLogger("postprocessing_vertebrae")
 
-# Region order along the spine, superior -> inferior. Used only to sort the
-# vertebrae so the ordering check walks them head-to-pelvis.
-_REGION_RANK = {"C": 0, "T": 1, "L": 2, "S": 3}
-_VERT_RE = re.compile(r"vertebrae?_([CTLS])(\d+)", re.IGNORECASE)
+# SuPreM combined_labels ids: 1=L5 ... 24=C1 (bottom-up)
+NAMES_BOTTOM_UP = (["L5", "L4", "L3", "L2", "L1"]
+                   + [f"T{i}" for i in range(12, 0, -1)]
+                   + [f"C{i}" for i in range(7, 0, -1)])
+ID_TO_NAME = {i + 1: n for i, n in enumerate(NAMES_BOTTOM_UP)}
+NAME_TO_ID = {n: i for i, n in ID_TO_NAME.items()}
+TOP_DOWN = list(reversed(NAMES_BOTTOM_UP))
+STRUCT6 = ndimage.generate_binary_structure(3, 1)
+STRUCT26 = np.ones((3, 3, 3), dtype=bool)
 
-
-def _vertebra_sort_key(name: str) -> tuple:
-    """Sort key mapping e.g. 'vertebrae_L3' -> (2, 3). Unknown names sort last."""
-    m = _VERT_RE.search(name)
-    if not m:
-        return (99, 0)
-    return (_REGION_RANK.get(m.group(1).upper(), 98), int(m.group(2)))
-
-
-def voxel_volume_mm3(affine: np.ndarray) -> float:
-    """Physical volume of one voxel in mm^3 (|det| of the affine's 3x3 block)."""
-    return float(abs(np.linalg.det(affine[:3, :3])))
-
-
-def resolve_min_voxels(affine: np.ndarray, min_size_mm3: float, min_voxels: int) -> int:
-    """Convert a physical fragment threshold to voxels for this file's spacing.
-
-    Scans differ in voxel size (e.g. thin-slice vs thick-slice CT), so a fixed
-    voxel count means a different physical volume per scan. When min_size_mm3
-    is positive it takes precedence; min_voxels is the spacing-blind fallback.
-    """
-    if min_size_mm3 > 0:
-        return max(1, int(round(min_size_mm3 / voxel_volume_mm3(affine))))
-    return min_voxels
-
-
-def keep_largest_component(mask: np.ndarray) -> np.ndarray:
-    """Keep only the largest 26-connected component of a binary mask."""
-    if not mask.any():
-        return mask
-    labeled = cc3d.connected_components(mask.astype(np.uint8), connectivity=26)
-    counts = np.bincount(labeled.ravel())
-    counts[0] = 0  # background
-    return labeled == int(counts.argmax())
+P = {
+    # evidence gates
+    "bone_hu": 150.0, "speck_mm3": 30.0, "soft_bone_fraction": 0.50,
+    "near_mm": 5.0, "corridor_pad_mm": 6.0, "bridge_cap_mm3": 500.0,
+    # islands
+    "enclosure": 0.80, "max_rel_to_host": 0.5, "min_labeled_shell": 0.5,
+    # suspicion / bands
+    "suspect_size_lo": 0.60, "suspect_size_hi": 1.80, "suspect_logres": 0.30,
+    "suspect_pool_frac": 0.20, "band_gap_close": 3,
+    # disc profile / DP
+    "profile_sigma_mm": 2.5, "profile_radius_mm": 10.0, "min_body_height_mm": 12.0,
+    "max_body_height_mm": 45.0, "dp_beta": 2.0, "pin_lo_mm": 8.0, "pin_hi_mm": 35.0,
+    # arbitration domain
+    "seed_margin_mm": 3.0, "seed_radius_mm": 14.0, "halo_mm": 2.5, "band_pad_mm": 4.0,
+    # smoothing
+    "sigma_mm": 1.2, "max_dev_mm": 1.5, "vol_tol": 0.01, "min_dice": 0.97,
+    "smooth_pad_mm": 5.0,
+    # io
+    "crop_margin_mm": 25.0,
+}
 
 
-def remove_small_fragments(mask: np.ndarray, min_voxels: int) -> np.ndarray:
-    """Drop connected components smaller than min_voxels."""
-    labeled = cc3d.connected_components(mask.astype(np.uint8), connectivity=26)
-    keep = np.zeros(mask.shape, dtype=bool)
-    for cid, count in enumerate(np.bincount(labeled.ravel())):
-        if cid != 0 and count >= min_voxels:
-            keep |= labeled == cid
-    return keep
+# ------------------------------------------------------------------ utils --
+def _bbox_pad(sl, pad_vox, shape):
+    return tuple(slice(max(s.start - int(p), 0), min(s.stop + int(p), n))
+                 for s, p, n in zip(sl, pad_vox, shape))
 
 
-def clean_binary_mask(mask: np.ndarray, min_voxels: int, closing_iters: int) -> np.ndarray:
-    """Full single-vertebra cleanup: largest component, fragment removal, closing."""
-    mask = keep_largest_component(mask)
-    mask = remove_small_fragments(mask, min_voxels)
-    if closing_iters > 0 and mask.any():
-        mask = ndimage.binary_closing(mask, iterations=closing_iters)
-    return mask
+def _components(mask):
+    cc = cc3d.connected_components(mask.astype(np.uint8), connectivity=26)
+    counts = np.bincount(cc.ravel())
+    counts[0] = 0
+    return cc, counts
 
 
-def _world_si_coord(centroid_vox: tuple, affine: np.ndarray) -> float:
-    """Map a voxel centroid to the world superior-inferior (RAS z) coordinate."""
-    v = np.array([centroid_vox[0], centroid_vox[1], centroid_vox[2], 1.0])
-    return float((affine @ v)[2])
-
-
-def flag_ordering(centroids_world_si: dict) -> list:
-    """Return vertebra names whose S-I position breaks monotonic spine ordering.
-
-    Vertebrae are sorted head-to-pelvis by name; their world S-I coordinate
-    should then be monotonic (sign depends on orientation, so we accept either
-    consistently increasing or decreasing and flag the local violations).
-    """
-    ordered = sorted(centroids_world_si.items(), key=lambda kv: _vertebra_sort_key(kv[0]))
-    if len(ordered) < 3:
-        return []
-    names = [n for n, _ in ordered]
-    si = [z for _, z in ordered]
-    decreasing = si[-1] < si[0]  # infer the expected direction from the endpoints
-    violations = []
-    for i in range(1, len(si)):
-        step = si[i] - si[i - 1]
-        if (decreasing and step > 0) or (not decreasing and step < 0):
-            violations.append(names[i])
-    return violations
-
-
-def process_case_permask(seg_dir: Path, out_dir: Path, min_size_mm3: float,
-                         min_voxels: int, closing_iters: int) -> None:
-    """Clean every vertebrae_*.nii.gz mask in a TotalSegmentator-style folder."""
-    vert_files = sorted(
-        (p for p in seg_dir.glob("*.nii.gz") if p.name.lower().startswith("vertebrae")),
-        key=lambda p: _vertebra_sort_key(p.name),
-    )
-    if not vert_files:
-        logger.warning("No vertebrae_*.nii.gz in %s", seg_dir)
-        return
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    centroids = {}
-    threshold_logged = False
-    for f in vert_files:
-        img = nib.load(str(f))
-        min_vox = resolve_min_voxels(img.affine, min_size_mm3, min_voxels)
-        if not threshold_logged:
-            logger.info("%s: voxel=%.2f mm^3, fragment threshold=%d voxels",
-                        seg_dir.parent.name, voxel_volume_mm3(img.affine), min_vox)
-            threshold_logged = True
-        mask = np.asarray(img.dataobj) > 0
-        if not mask.any():
-            logger.info("%s empty, skipped", f.name)
+def audit(seg, affine, vox_mm3):
+    """Repo-convention audit: FRAGMENTED / SIZE(<0.6) / ORDER / EMPTY flags."""
+    rows = []
+    objs = ndimage.find_objects(seg)
+    for name in TOP_DOWN:
+        lid = NAME_TO_ID[name]
+        sl = objs[lid - 1] if lid - 1 < len(objs) else None
+        if sl is None:
+            rows.append({"name": f"vertebrae_{name}", "voxels": 0, "volume_cm3": 0.0,
+                         "components": 0, "largest_fraction": 0.0, "flags": ["EMPTY"]})
             continue
-        cleaned = clean_binary_mask(mask, min_vox, closing_iters)
-        out_img = nib.Nifti1Image(cleaned.astype(np.uint8), img.affine, img.header)
-        nib.save(out_img, str(out_dir / f.name))
-        if cleaned.any():
-            centroids[f.stem.replace(".nii", "")] = _world_si_coord(
-                ndimage.center_of_mass(cleaned), img.affine
-            )
+        mask = seg[sl] == lid
+        vox = int(mask.sum())
+        _, counts = _components(mask)
+        com = ndimage.center_of_mass(mask)
+        w = affine @ np.array([com[0] + sl[0].start, com[1] + sl[1].start,
+                               com[2] + sl[2].start, 1.0])
+        ncomp = int((counts > 0).sum())
+        rows.append({"name": f"vertebrae_{name}", "voxels": vox,
+                     "volume_cm3": round(vox * vox_mm3 / 1000.0, 1),
+                     "components": ncomp,
+                     "largest_fraction": round(float(counts.max()) / vox, 4),
+                     "si_world": float(w[2]),
+                     "flags": [f"FRAGMENTED({ncomp})"] if ncomp > 1 else []})
+    si = [(r["name"], r["si_world"]) for r in rows if "si_world" in r]
+    if len(si) >= 3:
+        dec = si[-1][1] < si[0][1]
+        for i in range(1, len(si)):
+            step = si[i][1] - si[i - 1][1]
+            if (dec and step > 0) or (not dec and step < 0):
+                next(r for r in rows if r["name"] == si[i][0])["flags"].append("ORDER")
+    present = [r for r in rows if r["voxels"] > 0]
+    for i in range(1, len(present) - 1):
+        smaller = min(present[i - 1]["voxels"], present[i + 1]["voxels"])
+        if smaller > 0:
+            ratio = round(present[i]["voxels"] / smaller, 2)
+            present[i]["size_ratio_vs_neighbors"] = ratio
+            if ratio < 0.6:
+                present[i]["flags"].append(f"SIZE({ratio})")
+    summary = {k: sum(1 for r in rows if any(f.startswith(pre) for f in r["flags"]))
+               for k, pre in [("n_fragmented", "FRAG"), ("n_empty", "EMPTY"),
+                              ("n_size", "SIZE"), ("n_order", "ORDER")]}
+    return rows, summary
 
-    for name in flag_ordering(centroids):
-        logger.warning("%s breaks superior-inferior ordering (review manually)", name)
 
-
-def process_case_combined(seg_path: Path, out_path: Path, labels, min_size_mm3: float,
-                          min_voxels: int, closing_iters: int) -> None:
-    """Clean a set of vertebra labels inside one combined multi-label map."""
-    img = nib.load(str(seg_path))
-    min_vox = resolve_min_voxels(img.affine, min_size_mm3, min_voxels)
-    logger.info("%s: voxel=%.2f mm^3, fragment threshold=%d voxels",
-                seg_path.parent.name, voxel_volume_mm3(img.affine), min_vox)
-    seg = np.asarray(img.dataobj)
+# ---------------------------------------------------------------- stage 1 --
+def stage1_triage(seg, ct, zooms, vox_mm3, records):
     out = seg.copy()
-    for label in labels:
-        mask = seg == label
-        if not mask.any():
+    bone = ct >= P["bone_hu"]
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        cc, counts = _components(out == lid)
+        if (counts > 0).sum() <= 1:
             continue
-        out[mask] = 0  # clear, then write back only the cleaned voxels
-        out[clean_binary_mask(mask, min_vox, closing_iters)] = label
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    nib.save(nib.Nifti1Image(out.astype(seg.dtype), img.affine, img.header), str(out_path))
+        main_id = int(counts.argmax())
+        main = cc == main_id
+        union_sl = ndimage.find_objects((cc > 0).astype(np.uint8))[0]
+        pad_vox = np.ceil(P["near_mm"] / np.asarray(zooms)) + 2
+        union_sl = _bbox_pad(union_sl, pad_vox, seg.shape)
+        dist_main = ndimage.distance_transform_edt(~main[union_sl], sampling=zooms)
+        for comp_id in np.nonzero(counts)[0]:
+            if comp_id == main_id:
+                continue
+            comp = cc == comp_id
+            vol = float(counts[comp_id]) * vox_mm3
+            hu = ct[comp]
+            rec = {"stage": 1, "label": ID_TO_NAME[lid], "vol_mm3": round(vol, 1),
+                   "hu_mean": round(float(hu.mean()), 1),
+                   "bone_fraction": round(float((hu >= P["bone_hu"]).mean()), 3)}
+            if vol < P["speck_mm3"]:
+                out[comp] = 0
+                rec["action"] = "REMOVED_SPECK"
+            elif rec["bone_fraction"] <= P["soft_bone_fraction"]:
+                out[comp] = 0
+                rec["action"] = "REMOVED_SOFT"
+            else:
+                d = float(dist_main[comp[union_sl]].min())
+                rec["dist_to_main_mm"] = round(d, 2)
+                if d <= P["near_mm"]:
+                    added = _bridge(out, bone, main, comp, lid, zooms)
+                    if added is not None:
+                        out[comp] = lid
+                        out[added] = lid
+                        rec["action"] = "BRIDGED"
+                        rec["bridge_added_mm3"] = round(float(added.sum()) * vox_mm3, 1)
+                    else:
+                        rec["action"] = "KEPT_POSSIBLE_FRAGMENT"
+                else:
+                    out[comp] = 0
+                    rec["action"] = "REMOVED_FAR_REASSIGN_CANDIDATE"
+            records.append(rec)
+    return out
 
 
-def process_case(case: Path, out_root: Path, args) -> None:
-    seg_dir = case / "segmentations"
-    if seg_dir.is_dir():
-        process_case_permask(seg_dir, out_root / case.name / "segmentations",
-                             args.min_size_mm3, args.min_voxels, args.closing_iters)
-        return
-    combined = case / args.seg_name
+def _bridge(seg, bone, main, comp, lid, zooms):
+    nz_c = ndimage.find_objects(comp.astype(np.uint8))[0]
+    nz_m = ndimage.find_objects(main.astype(np.uint8))[0]
+    joint = tuple(slice(min(a.start, b.start), max(a.stop, b.stop))
+                  for a, b in zip(nz_c, nz_m))
+    pad_vox = np.ceil(P["corridor_pad_mm"] / np.asarray(zooms)) + 1
+    joint = _bbox_pad(joint, pad_vox, seg.shape)
+    seg_j, bone_j = seg[joint], bone[joint]
+    comp_j, main_j = comp[joint], main[joint]
+    d_comp = ndimage.distance_transform_edt(~comp_j, sampling=zooms)
+    d_main = ndimage.distance_transform_edt(~main_j, sampling=zooms)
+    neck = (d_comp <= P["near_mm"]) & (d_main <= P["near_mm"])
+    domain = (bone_j & ((seg_j == 0) | (seg_j == lid)) & neck) | comp_j | main_j
+    reach = ndimage.binary_propagation(main_j, mask=domain, structure=STRUCT26)
+    if not (reach & comp_j).any():
+        return None
+    fill = reach & (seg_j == 0) & bone_j & neck
+    if float(fill.sum()) * abs(np.prod(zooms)) > P["bridge_cap_mm3"]:
+        return None
+    corridor = np.zeros_like(comp)
+    corridor[joint] = fill
+    return corridor
+
+
+# --------------------------------------------------------------- stage 2a --
+def stage2a_islands(seg, vox_mm3, records):
+    out = seg.copy()
+    vol = {int(l): int((seg == l).sum()) for l in np.unique(seg) if l != 0}
+    for lid in sorted(vol):
+        cc, counts = _components(out == lid)
+        if (counts > 0).sum() <= 1:
+            continue
+        main_id = int(counts.argmax())
+        for comp_id in np.nonzero(counts)[0]:
+            if comp_id == main_id:
+                continue
+            comp = cc == comp_id
+            sl = _bbox_pad(ndimage.find_objects(comp.astype(np.uint8))[0],
+                           np.array([2, 2, 2]), seg.shape)
+            comp_l = comp[sl]
+            shell = ndimage.binary_dilation(comp_l, structure=STRUCT26) & ~comp_l
+            neigh = out[sl][shell]
+            labeled = neigh[neigh != 0]
+            if neigh.size == 0 or labeled.size / neigh.size < P["min_labeled_shell"]:
+                continue
+            ids, cnt = np.unique(labeled, return_counts=True)
+            host = int(ids[cnt.argmax()])
+            frac = float(cnt.max()) / labeled.size
+            rec = {"stage": "2a", "label": ID_TO_NAME[lid], "host": ID_TO_NAME[host],
+                   "vol_mm3": round(float(counts[comp_id]) * vox_mm3, 1),
+                   "enclosure": round(frac, 3)}
+            if (host != lid and frac >= P["enclosure"]
+                    and counts[comp_id] <= P["max_rel_to_host"] * vol.get(host, 0)):
+                out[comp] = host
+                rec["action"] = "ISLAND_REASSIGNED"
+            else:
+                rec["action"] = "ISLAND_FLAG_ONLY"
+            records.append(rec)
+    return out
+
+
+# --------------------------------------------------------------- stage 2b --
+def find_suspects(seg, raw, affine, vox_mm3):
+    rows, _ = audit(seg, affine, vox_mm3)
+    info = {r["name"].replace("vertebrae_", ""): r for r in rows if r["voxels"] > 0}
+    order = [n for n in TOP_DOWN if n in info]
+    suspects = set()
+    logv = {n: np.log(max(info[n]["voxels"], 1)) for n in order}
+    for i, n in enumerate(order):
+        w = [logv[order[j]] for j in range(max(0, i - 2), min(len(order), i + 3)) if j != i]
+        if w and abs(logv[n] - float(np.median(w))) > P["suspect_logres"]:
+            suspects.add(n)
+    for n, r in info.items():
+        ratio = r.get("size_ratio_vs_neighbors")
+        if ratio is not None and (ratio < P["suspect_size_lo"] or ratio > P["suspect_size_hi"]):
+            suspects.add(n)
+        if r["components"] > 1 or "ORDER" in r["flags"]:
+            suspects.add(n)
+    for lid in np.unique(raw):
+        if lid == 0:
+            continue
+        raw_n = int((raw == lid).sum())
+        pool_n = int(((raw == lid) & (seg == 0)).sum())
+        if raw_n and pool_n / raw_n >= P["suspect_pool_frac"]:
+            suspects.add(ID_TO_NAME[int(lid)])
+    idx = {n: i for i, n in enumerate(order)}
+    s_idx = sorted(idx[n] for n in suspects if n in idx)
+    bands = []
+    for i in s_idx:
+        if bands and i - bands[-1][-1] <= P["band_gap_close"] + 1:
+            bands[-1] = list(range(bands[-1][0], i + 1))
+        else:
+            bands.append([i])
+    return [[order[j] for j in range(b[0], b[-1] + 1)] for b in bands], sorted(suspects), order
+
+
+def column_profile(seg, raw, ct, zooms):
+    """Body centerline (largest in-plane bone component) + perpendicular
+    mean-HU profile: bodies read high, discs dip, even under kyphosis."""
+    bone = ct >= P["bone_hu"]
+    M = (seg > 0) | ((raw > 0) & bone)
+    Mb = M & bone
+    nz = seg.shape[2]
+    cx = np.full(nz, np.nan); cy = np.full(nz, np.nan)
+    for z in np.nonzero(M.any(axis=(0, 1)))[0]:
+        sl2 = Mb[:, :, z] if Mb[:, :, z].any() else M[:, :, z]
+        lab, n = ndimage.label(sl2)
+        if n == 0:
+            continue
+        sizes = np.bincount(lab.ravel()); sizes[0] = 0
+        pts = np.nonzero(lab == sizes.argmax())
+        cx[z], cy[z] = pts[0].mean(), pts[1].mean()
+    w = max(int(40.0 / zooms[2]) | 1, 5)
+    ker = np.ones(w) / w
+    ok = ~np.isnan(cx)
+    cxs, cys = cx.copy(), cy.copy()
+    cxs[ok] = np.convolve(np.pad(cx[ok], w // 2, mode="edge"), ker, "valid")
+    cys[ok] = np.convolve(np.pad(cy[ok], w // 2, mode="edge"), ker, "valid")
+    zmm = np.asarray(zooms)
+    Pmm = np.c_[cxs * zmm[0], cys * zmm[1], np.arange(nz) * zmm[2]]
+    idx = np.nonzero(ok)[0]
+    if idx.size < 5:
+        return cxs, cys, np.zeros(nz)
+    T = np.zeros_like(Pmm)
+    grad = np.gradient(ndimage.gaussian_filter1d(Pmm[idx], sigma=8.0 / zmm[2], axis=0), axis=0)
+    grad /= np.maximum(np.linalg.norm(grad, axis=1, keepdims=True), 1e-6)
+    T[idx] = grad
+    r = P["profile_radius_mm"]
+    aa, bb = np.meshgrid(np.arange(-r, r + 1.2, 1.2), np.arange(-r, r + 1.2, 1.2))
+    keep = aa ** 2 + bb ** 2 <= r ** 2
+    offs = np.c_[aa[keep], bb[keep]]
+    rho = np.full(nz, np.nan)
+    hu = ct.astype(np.float32)
+    for z in idx:
+        t = T[z]
+        ref = np.array([1.0, 0, 0]) if abs(t[0]) < 0.9 else np.array([0.0, 1, 0])
+        u = np.cross(t, ref); u /= np.linalg.norm(u)
+        v = np.cross(t, u)
+        pts_mm = Pmm[z] + offs[:, :1] * u + offs[:, 1:2] * v
+        vals = ndimage.map_coordinates(hu, (pts_mm / zmm).T, order=1, mode="nearest")
+        rho[z] = float(np.clip(vals, 0, 800).mean())
+    rho_s = ndimage.gaussian_filter1d(np.where(np.isnan(rho), 0.0, rho),
+                                      sigma=max(P["profile_sigma_mm"] / zooms[2], 0.8))
+    return cxs, cys, rho_s
+
+
+def disc_minima(rho_s, z_lo, z_hi, n_cuts, zooms, pin_lo, pin_hi):
+    """Exactly n_cuts minima chosen by spacing-regularized DP with anchor pins."""
+    seg_rho = rho_s[z_lo:z_hi]
+    if seg_rho.size < 5 or seg_rho.max() <= 0 or n_cuts <= 0:
+        return [] if n_cuts == 0 else None
+    dz = zooms[2]
+    peaks, props = signal.find_peaks(-seg_rho, distance=max(int(6.0 / dz), 2),
+                                     prominence=1e-6)
+    if peaks.size < n_cuts:
+        return None
+    z = peaks.astype(float) * dz
+    p = props["prominences"] / props["prominences"].max()
+    m, K = peaks.size, n_cuts
+    min_h, max_h = P["min_body_height_mm"], P["max_body_height_mm"]
+    span = (z_hi - z_lo) * dz
+    NEG = -1e18
+    first_ok = (z >= P["pin_lo_mm"]) & (z <= P["pin_hi_mm"]) if pin_lo else np.ones(m, bool)
+    last_ok = ((z >= span - P["pin_hi_mm"]) & (z <= span - P["pin_lo_mm"])
+               if pin_hi else np.ones(m, bool))
+    if not first_ok.any() or not last_ok.any():
+        return None
+    dp = np.full((K, m, m), NEG)
+    bk = np.zeros((K, m, m), dtype=np.int32)
+    for j in range(m):
+        if first_ok[j]:
+            dp[0, j, :] = p[j]
+    for k in range(1, K):
+        for j in range(m):
+            for i in range(j):
+                h = z[j] - z[i]
+                if not (min_h <= h <= max_h):
+                    continue
+                if k == 1:
+                    best_prev, best_i2 = dp[0, i, 0], 0
+                else:
+                    best_prev, best_i2 = NEG, 0
+                    for i2 in range(i):
+                        h_prev = z[i] - z[i2]
+                        if not (min_h <= h_prev <= max_h):
+                            continue
+                        s = dp[k - 1, i, i2] - P["dp_beta"] * np.log(h / h_prev) ** 2
+                        if s > best_prev:
+                            best_prev, best_i2 = s, i2
+                if best_prev > NEG / 2 and best_prev + p[j] > dp[k, j, i]:
+                    dp[k, j, i] = best_prev + p[j]
+                    bk[k, j, i] = best_i2
+    flat = dp[K - 1].copy()
+    flat[~last_ok, :] = NEG
+    if flat.max() <= NEG / 2:
+        return None
+    j, i = np.unravel_index(int(flat.argmax()), flat.shape)
+    picks = [j]
+    k = K - 1
+    while k >= 1:
+        picks.append(i)
+        j, i, k = i, int(bk[k, j, i]), k - 1
+    return sorted(int(peaks[q]) + z_lo for q in set(picks))
+
+
+def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms, vox_mm3, qa):
+    bone = ct >= P["bone_hu"]
+    band_ids = [NAME_TO_ID[n] for n in band]
+    band_mask = np.isin(seg, band_ids)
+    pool = np.isin(raw, band_ids) & (seg == 0) & bone
+    zsel = np.nonzero((band_mask | pool).any(axis=(0, 1)))[0]
+    pad = int(P["band_pad_mm"] / zooms[2]) + 1
+    z0 = max(int(zsel[0]) - pad, 0)
+    z1 = min(int(zsel[-1]) + pad + 1, seg.shape[2])
+    rec = {"levels": band}
+    qa["bands"].append(rec)
+
+    def centroid_z(name):
+        zs = np.nonzero((seg == NAME_TO_ID[name]).any(axis=(0, 1)))[0]
+        return float(zs.mean()) if zs.size else None
+
+    ups = sorted((NAME_TO_ID[n], centroid_z(n)) for n in band if centroid_z(n) is not None)
+    z_up = True if len(ups) < 2 else ups[-1][1] >= ups[0][1]
+    lo_name, hi_name = (neighbors if z_up else neighbors[::-1])
+    w_lo = centroid_z(lo_name) if lo_name else None
+    w_hi = centroid_z(hi_name) if hi_name else None
+    win_lo = int(w_lo) if w_lo is not None else int(zsel[0]) + int(4.0 / zooms[2])
+    win_hi = int(w_hi) if w_hi is not None else int(zsel[-1]) - int(4.0 / zooms[2])
+    n_expect = (len(band_ids) - 1) + (w_lo is not None) + (w_hi is not None)
+    found = disc_minima(rho_s, win_lo, win_hi, n_expect, zooms,
+                        w_lo is not None, w_hi is not None)
+    if found is None:
+        qa["flags"].append(f"DISC_COUNT_UNRESOLVED band={band}: flag only, no edit")
+        rec["skipped"] = True
+        return None
+    lo_cut = found.pop(0) if w_lo is not None else z0
+    hi_cut = found.pop(-1) if w_hi is not None else z1
+    cuts = [lo_cut] + found + [hi_cut]
+    rec["disc_cuts_z"] = cuts
+    segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
+    ids_by_z = sorted(band_ids) if z_up else sorted(band_ids, reverse=True)
+    assign = dict(zip(ids_by_z, segments))
+    z0, z1 = int(lo_cut), int(hi_cut)
+    rec["cleared_out_of_band_mm3"] = round(
+        float(band_mask[:, :, :z0].sum() + band_mask[:, :, z1:].sum()) * vox_mm3, 1)
+
+    slab = slice(z0, z1)
+    seg_s, bone_s = seg[:, :, slab], bone[:, :, slab]
+    band_s, pool_s = band_mask[:, :, slab], pool[:, :, slab]
+    eligible_s = band_s | pool_s
+    margin = int(P["seed_margin_mm"] / zooms[2])
+    xx, yy = np.meshgrid(np.arange(seg.shape[0]), np.arange(seg.shape[1]), indexing="ij")
+    markers = np.zeros(seg_s.shape, dtype=np.int32)
+    r2 = P["seed_radius_mm"] ** 2
+    for lid, (a, b) in assign.items():
+        a2, b2 = (a + margin, b - margin) if b - a > 2 * margin else (a, b)
+        for z in range(max(a2, z0), min(b2, z1)):
+            if np.isnan(cxs[z]):
+                continue
+            d2 = ((xx - cxs[z]) * zooms[0]) ** 2 + ((yy - cys[z]) * zooms[1]) ** 2
+            sel2 = bone_s[:, :, z - z0] & (d2 <= r2) & eligible_s[:, :, z - z0]
+            markers[:, :, z - z0][sel2] = lid
+        if not (markers == lid).any():
+            er = ndimage.binary_erosion(seg_s == lid, structure=STRUCT6, iterations=2)
+            markers[er if er.any() else (seg_s == lid)] = lid
+            qa["flags"].append(f"SEED_FALLBACK_{ID_TO_NAME[lid]}")
+
+    halo_it = int(max(np.round(P["halo_mm"] / np.asarray(zooms))))
+    grown = ndimage.binary_dilation(band_s | pool_s, structure=STRUCT6,
+                                    iterations=max(halo_it, 1))
+    halo = grown & (seg_s == 0) & bone_s & ~pool_s
+    D = band_s | pool_s | halo
+    # uniform-speed geodesic competition; the bone mask carries the physics
+    labels_ws = watershed(np.zeros(D.shape, dtype=np.uint8), markers=markers, mask=D)
+    out = seg.copy()
+    out[band_mask] = 0
+    out_s = out[:, :, slab]
+    sel = labels_ws > 0
+    out_s[sel] = labels_ws[sel].astype(seg.dtype)
+    rec["unreached_pool_mm3"] = round(float((D & ~sel & (seg_s == 0)).sum()) * vox_mm3, 1)
+    return out
+
+
+def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
+    bands, suspects, present = find_suspects(seg, raw, affine, vox_mm3)
+    qa["suspects"] = suspects
+    if not bands:
+        return seg
+    cxs, cys, rho_s = column_profile(seg, raw, ct, zooms)
+
+    def badness(s, names):
+        rows_, _ = audit(s, affine, vox_mm3)
+        bad = 0
+        for r in rows_:
+            nm = r["name"].replace("vertebrae_", "")
+            if nm in names:
+                bad += sum(1 for f in r["flags"]
+                           if f.startswith(("SIZE", "FRAG", "EMPTY", "ORDER")))
+                ratio = r.get("size_ratio_vs_neighbors")
+                if ratio is not None and ratio > P["suspect_size_hi"]:
+                    bad += 1
+        return bad
+
+    out = seg
+    for band in bands:
+        if {"C1", "C2"} & set(band):
+            qa["flags"].append(f"ATLAS_AXIS_SKIP band={band}: no disc plane at C1/C2")
+            continue
+        i0, i1 = present.index(band[0]), present.index(band[-1])
+        above = present[i0 - 1] if i0 > 0 else None
+        below = present[i1 + 1] if i1 + 1 < len(present) else None
+        cand = arbitrate_band(out, raw, ct, band, (below, above), cxs, cys, rho_s,
+                              zooms, vox_mm3, qa)
+        if cand is None:
+            continue
+        b0, b1 = badness(out, set(band)), badness(cand, set(band))
+        qa["bands"][-1]["badness_before_after"] = [b0, b1]
+        if b1 >= b0:
+            qa["flags"].append(f"REVERTED band={band}: badness {b0}->{b1}")
+        else:
+            out = cand
+    return out
+
+
+# ---------------------------------------------------------------- stage 3 --
+def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
+    bone = ct >= P["bone_hu"]
+    pad_vox = np.ceil(P["smooth_pad_mm"] / np.asarray(zooms))
+    objs = ndimage.find_objects(seg)
+    per_label = {}
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        sl = _bbox_pad(objs[lid - 1], pad_vox, seg.shape)
+        m = seg[sl] == lid
+        m_f = ndimage.binary_fill_holes(m)
+        d_in = ndimage.distance_transform_edt(m_f, sampling=zooms)
+        d_out = ndimage.distance_transform_edt(~m_f, sampling=zooms)
+        sdt = (d_in - d_out).astype(np.float32)
+        s = ndimage.gaussian_filter(sdt, sigma=[P["sigma_mm"] / z for z in zooms])
+        target = int(m_f.sum())
+        lo, hi = -2.0, 2.0
+        tau = 0.0
+        for _ in range(40):
+            tau = 0.5 * (lo + hi)
+            n = int((s > tau).sum())
+            if abs(n - target) <= P["vol_tol"] * target:
+                break
+            lo, hi = (tau, hi) if n > target else (lo, tau)
+        per_label[lid] = (sl, m_f, sdt, s, float(tau))
+        qa["smooth"].append({"label": ID_TO_NAME[lid],
+                             "holes_filled_mm3": round(float((m_f & ~m).sum()) * vox_mm3, 1),
+                             "tau_mm": round(float(tau), 3)})
+    out = np.zeros_like(seg)
+    step = max(64, int(120 / zooms[2]))
+    for c0 in range(0, seg.shape[2], step):
+        c1 = min(c0 + step, seg.shape[2])
+        score = np.full((seg.shape[0], seg.shape[1], c1 - c0), -np.inf, dtype=np.float32)
+        lab = np.zeros((seg.shape[0], seg.shape[1], c1 - c0), dtype=seg.dtype)
+        for lid, (sl, m_f, sdt, s, tau) in per_label.items():
+            i0, i1 = max(sl[2].start, c0), min(sl[2].stop, c1)
+            if i0 >= i1:
+                continue
+            zloc = slice(i0 - sl[2].start, i1 - sl[2].start)
+            s_l, sdt_l, m_l = s[:, :, zloc], sdt[:, :, zloc], m_f[:, :, zloc]
+            band = np.abs(sdt_l) <= P["max_dev_mm"]
+            claim = np.where(band, s_l > tau, m_l)
+            marg = np.where(band, s_l - tau, np.where(m_l, 1e3, -1e3)).astype(np.float32)
+            claim &= (m_l | bone[sl[0], sl[1], i0:i1])
+            sc = score[sl[0], sl[1], i0 - c0:i1 - c0]
+            lb = lab[sl[0], sl[1], i0 - c0:i1 - c0]
+            upd = claim & (marg > sc)
+            sc[upd] = marg[upd]
+            lb[upd] = lid
+        out[:, :, c0:c1] = lab
+    for lid, (sl, m_f, sdt, s, tau) in per_label.items():
+        new = out[sl] == lid
+        denom = int(new.sum()) + int(m_f.sum())
+        dice = 2 * int((new & m_f).sum()) / denom if denom else 1.0
+        _, c_new = _components(new)
+        _, c_old = _components(m_f)
+        rec = next(r for r in qa["smooth"] if r["label"] == ID_TO_NAME[lid])
+        rec["dice_vs_presmooth"] = round(dice, 4)
+        if dice < P["min_dice"] or int((c_new > 0).sum()) > int((c_old > 0).sum()):
+            out[sl][m_f] = lid
+            out[sl][(out[sl] == lid) & ~m_f] = 0
+            rec["reverted"] = True
+    return out
+
+
+# --------------------------------------------------------------------- io --
+def load_case(case_dir: Path, ct_root: Path):
+    combined = case_dir / "combined_labels.nii.gz"
     if combined.exists():
-        labels = [int(x) for x in args.labels.split(",")] if args.labels else list(range(1, 26))
-        process_case_combined(combined, out_root / case.name / args.seg_name, labels,
-                              args.min_size_mm3, args.min_voxels, args.closing_iters)
-        return
-    logger.warning("Skipping %s: no segmentations/ folder and no %s", case.name, args.seg_name)
+        seg_img = nib.load(str(combined))
+        seg = np.asarray(seg_img.dataobj).astype(np.uint8)
+    else:
+        seg_dir = case_dir / "segmentations"
+        files = sorted(seg_dir.glob("vertebrae_*.nii.gz"))
+        if not files:
+            return None
+        seg_img = nib.load(str(files[0]))
+        seg = np.zeros(seg_img.shape, dtype=np.uint8)
+        for f in files:
+            name = f.name.replace("vertebrae_", "").replace(".nii.gz", "")
+            if name in NAME_TO_ID:
+                seg[np.asarray(nib.load(str(f)).dataobj) > 0] = NAME_TO_ID[name]
+    ct_path = ct_root / case_dir.name / "ct.nii.gz"
+    if not ct_path.exists():
+        log.error("%s: no CT at %s (CT evidence is required)", case_dir.name, ct_path)
+        return None
+    ct_img = nib.load(str(ct_path))
+    ct = np.asarray(ct_img.dataobj)
+    if ct.shape != seg.shape:
+        log.error("%s: CT grid %s != prediction grid %s", case_dir.name, ct.shape, seg.shape)
+        return None
+    return seg_img, seg, np.clip(ct, -1024, 3071).astype(np.int16), ct_img
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Post-process vertebra segmentations.")
-    parser.add_argument("--pred_dir", required=True, type=Path)
-    parser.add_argument("--out_dir", required=True, type=Path)
-    parser.add_argument("--seg_name", default="combined_labels.nii.gz",
-                        help="Combined multi-label filename (combined-map layout only).")
-    parser.add_argument("--labels", default="",
-                        help="Comma-separated vertebra label ids for the combined map.")
-    parser.add_argument("--min_size_mm3", type=float, default=500.0,
-                        help="Drop fragments smaller than this physical volume (mm^3); "
-                             "converted per file using its voxel spacing. Set <=0 to "
-                             "fall back to the raw --min_voxels count.")
-    parser.add_argument("--min_voxels", type=int, default=200,
-                        help="Spacing-blind fallback threshold, used when --min_size_mm3<=0.")
-    parser.add_argument("--closing_iters", type=int, default=1,
-                        help="Binary-closing iterations (0 disables).")
-    args = parser.parse_args()
+def write_case(out_dir: Path, case_id: str, seg_full, seg_img):
+    case_out = out_dir / case_id
+    (case_out / "segmentations").mkdir(parents=True, exist_ok=True)
+    nib.save(nib.Nifti1Image(seg_full.astype(np.uint8), seg_img.affine, seg_img.header),
+             str(case_out / "combined_labels.nii.gz"))
+    for lid, name in ID_TO_NAME.items():
+        m = (seg_full == lid).astype(np.uint8)
+        nib.save(nib.Nifti1Image(m, seg_img.affine, seg_img.header),
+                 str(case_out / "segmentations" / f"vertebrae_{name}.nii.gz"))
 
+
+def process_case(case_dir: Path, ct_root: Path, out_dir: Path, report_dir: Path):
+    loaded = load_case(case_dir, ct_root)
+    if loaded is None:
+        return None
+    seg_img, seg_full, ct_full, _ = loaded
+    zooms = tuple(float(z) for z in seg_img.header.get_zooms()[:3])
+    vox_mm3 = float(abs(np.linalg.det(seg_img.affine[:3, :3])))
+    # crop to the spine region (+margin) for all processing
+    pad = np.maximum(np.round(P["crop_margin_mm"] / np.asarray(zooms)).astype(int), 2)
+    nz = np.nonzero(seg_full)
+    lo = np.maximum(np.array([c.min() for c in nz]) - pad, 0)
+    hi = np.minimum(np.array([c.max() for c in nz]) + pad + 1, seg_full.shape)
+    sl = tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
+    seg = seg_full[sl].copy()
+    ct = ct_full[sl]
+    aff = seg_img.affine.copy()
+    aff[:3, 3] = (seg_img.affine @ np.array([lo[0], lo[1], lo[2], 1.0]))[:3]
+
+    qa = {"case": case_dir.name, "params": P, "records": [], "bands": [],
+          "flags": [], "smooth": []}
+    _, s0 = audit(seg, aff, vox_mm3)
+    log.info("%s input audit: %s", case_dir.name, s0)
+    raw = seg.copy()
+    seg = stage1_triage(seg, ct, zooms, vox_mm3, qa["records"])
+    seg = stage2a_islands(seg, vox_mm3, qa["records"])
+    seg = stage2b_arbitrate(seg, raw, ct, aff, zooms, vox_mm3, qa)
+    seg = stage3_smooth(seg, ct, zooms, vox_mm3, qa)
+    rows, s1 = audit(seg, aff, vox_mm3)
+    qa["audit_before"], qa["audit_after"] = s0, s1
+    qa["audit_rows_after"] = rows
+    log.info("%s output audit: %s", case_dir.name, s1)
+
+    out_full = np.zeros_like(seg_full, dtype=np.uint8)
+    out_full[sl] = seg
+    write_case(out_dir, case_dir.name, out_full, seg_img)
+    if report_dir:
+        report_dir.mkdir(parents=True, exist_ok=True)
+        (report_dir / f"{case_dir.name}_postprocessing_qa.json").write_text(
+            json.dumps(qa, indent=1, default=float))
+    return s0, s1
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--pred_dir", required=True, type=Path)
+    ap.add_argument("--ct_root", required=True, type=Path,
+                    help="Root holding <case>/ct.nii.gz (evidence gates need HU).")
+    ap.add_argument("--out_dir", required=True, type=Path)
+    ap.add_argument("--report_dir", type=Path, default=Path("reports"))
+    ap.add_argument("--case", action="append", default=None)
+    args = ap.parse_args()
     cases = sorted(p for p in args.pred_dir.iterdir() if p.is_dir())
+    if args.case:
+        want = {c for v in args.case for c in v.split(",")}
+        cases = [c for c in cases if c.name in want]
     if not cases:
-        logger.error("No case folders under %s", args.pred_dir)
+        log.error("no case folders under %s", args.pred_dir)
         return
-    logger.info("Processing %d case(s)", len(cases))
-    for case in cases:
-        process_case(case, args.out_dir, args)
-    logger.info("Done. Refined predictions in %s", args.out_dir)
+    for case_dir in cases:
+        process_case(case_dir, args.ct_root, args.out_dir, args.report_dir)
+    log.info("done: refined predictions in %s", args.out_dir)
 
 
 if __name__ == "__main__":

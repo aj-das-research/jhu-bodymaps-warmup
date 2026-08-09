@@ -1,0 +1,108 @@
+[
+  {
+    "case": "BDMAP_00000006",
+    "ok": true,
+    "files": {
+      "ct": {
+        "path": "data/AbdomenAtlasDemo/BDMAP_00000006/ct.nii.gz",
+        "shape": [
+          512,
+          512,
+          391
+        ],
+        "zooms_mm": [
+          0.7812,
+          0.7812,
+          2.5
+        ],
+        "voxel_mm3": 1.5259,
+        "axcodes": "LAS"
+      },
+      "combined_labels": {
+        "path": "AbdomenAtlasDemoPredict/BDMAP_00000006/combined_labels.nii.gz",
+        "shape": [
+          512,
+          512,
+          391
+        ],
+        "zooms_mm": [
+          0.7812,
+          0.7812,
+          2.5
+        ],
+        "voxel_mm3": 1.5259,
+        "axcodes": "LAS"
+      },
+      "vertebrae_L1.nii.gz": {
+        "path": "AbdomenAtlasDemoPredict/BDMAP_00000006/segmentations/vertebrae_L1.nii.gz",
+        "shape": [
+          512,
+          512,
+          391
+        ],
+        "zooms_mm": [
+          0.7812,
+          0.7812,
+          2.5
+        ],
+        "voxel_mm3": 1.5259,
+        "axcodes": "LAS"
+      }
+    },
+    "issues": [],
+    "itk_snap_overlay_ok": true
+  },
+  {
+    "case": "BDMAP_00000031",
+    "ok": true,
+    "files": {
+      "ct": {
+        "path": "data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz",
+        "shape": [
+          512,
+          512,
+          1394
+        ],
+        "zooms_mm": [
+          0.9141,
+          0.9141,
+          0.7
+        ],
+        "voxel_mm3": 0.5849,
+        "axcodes": "LAS"
+      },
+      "combined_labels": {
+        "path": "AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz",
+        "shape": [
+          512,
+          512,
+          1394
+        ],
+        "zooms_mm": [
+          0.9141,
+          0.9141,
+          0.7
+        ],
+        "voxel_mm3": 0.5849,
+        "axcodes": "LAS"
+      },
+      "vertebrae_L1.nii.gz": {
+        "path": "AbdomenAtlasDemoPredict/BDMAP_00000031/segmentations/vertebrae_L1.nii.gz",
+        "shape": [
+          512,
+          512,
+          1394
+        ],
+        "zooms_mm": [
+          0.9141,
+          0.9141,
+          0.7
+        ],
+        "voxel_mm3": 0.5849,
+        "axcodes": "LAS"
+      }
+    },
+    "issues": [],
+    "itk_snap_overlay_ok": true
+  }
+]

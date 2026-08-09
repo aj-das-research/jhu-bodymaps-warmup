@@ -1,0 +1,514 @@
+[
+  {
+    "case": "BDMAP_00000006",
+    "masks": [
+      {
+        "name": "vertebrae_C1",
+        "voxels": 9867,
+        "volume_cm3": 15.1,
+        "components": 5,
+        "largest_fraction": 0.9341,
+        "flags": [
+          "FRAGMENTED(5)"
+        ]
+      },
+      {
+        "name": "vertebrae_C2",
+        "voxels": 12153,
+        "volume_cm3": 18.5,
+        "components": 4,
+        "largest_fraction": 0.9901,
+        "flags": [
+          "FRAGMENTED(4)",
+          "ORDER"
+        ],
+        "size_ratio_vs_neighbors": 1.79
+      },
+      {
+        "name": "vertebrae_C3",
+        "voxels": 6787,
+        "volume_cm3": 10.4,
+        "components": 3,
+        "largest_fraction": 0.9953,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 0.87
+      },
+      {
+        "name": "vertebrae_C4",
+        "voxels": 7762,
+        "volume_cm3": 11.8,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.16
+      },
+      {
+        "name": "vertebrae_C5",
+        "voxels": 6680,
+        "volume_cm3": 10.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 0.88
+      },
+      {
+        "name": "vertebrae_C6",
+        "voxels": 7550,
+        "volume_cm3": 11.5,
+        "components": 2,
+        "largest_fraction": 0.9989,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.13
+      },
+      {
+        "name": "vertebrae_C7",
+        "voxels": 11689,
+        "volume_cm3": 17.8,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.55
+      },
+      {
+        "name": "vertebrae_T1",
+        "voxels": 14103,
+        "volume_cm3": 21.5,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.21
+      },
+      {
+        "name": "vertebrae_T2",
+        "voxels": 13317,
+        "volume_cm3": 20.3,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.01
+      },
+      {
+        "name": "vertebrae_T3",
+        "voxels": 13214,
+        "volume_cm3": 20.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 0.99
+      },
+      {
+        "name": "vertebrae_T4",
+        "voxels": 14286,
+        "volume_cm3": 21.8,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T5",
+        "voxels": 15383,
+        "volume_cm3": 23.5,
+        "components": 2,
+        "largest_fraction": 0.9995,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T6",
+        "voxels": 16610,
+        "volume_cm3": 25.3,
+        "components": 2,
+        "largest_fraction": 0.9998,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T7",
+        "voxels": 17907,
+        "volume_cm3": 27.3,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T8",
+        "voxels": 19905,
+        "volume_cm3": 30.4,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.11
+      },
+      {
+        "name": "vertebrae_T9",
+        "voxels": 20681,
+        "volume_cm3": 31.6,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.04
+      },
+      {
+        "name": "vertebrae_T10",
+        "voxels": 24602,
+        "volume_cm3": 37.5,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.19
+      },
+      {
+        "name": "vertebrae_T11",
+        "voxels": 25139,
+        "volume_cm3": 38.4,
+        "components": 3,
+        "largest_fraction": 0.9986,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.02
+      },
+      {
+        "name": "vertebrae_T12",
+        "voxels": 28299,
+        "volume_cm3": 43.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.13
+      },
+      {
+        "name": "vertebrae_L1",
+        "voxels": 29013,
+        "volume_cm3": 44.3,
+        "components": 2,
+        "largest_fraction": 0.9985,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.03
+      },
+      {
+        "name": "vertebrae_L2",
+        "voxels": 31407,
+        "volume_cm3": 47.9,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_L3",
+        "voxels": 37484,
+        "volume_cm3": 57.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.19
+      },
+      {
+        "name": "vertebrae_L4",
+        "voxels": 38358,
+        "volume_cm3": 58.5,
+        "components": 3,
+        "largest_fraction": 0.9996,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.02
+      },
+      {
+        "name": "vertebrae_L5",
+        "voxels": 37967,
+        "volume_cm3": 57.9,
+        "components": 5,
+        "largest_fraction": 0.9993,
+        "flags": [
+          "FRAGMENTED(5)"
+        ]
+      }
+    ],
+    "n_masks": 24,
+    "n_fragmented": 10,
+    "n_empty": 0,
+    "n_size_anomalies": 0,
+    "n_order_violations": 1
+  },
+  {
+    "case": "BDMAP_00000031",
+    "masks": [
+      {
+        "name": "vertebrae_C1",
+        "voxels": 27521,
+        "volume_cm3": 16.1,
+        "components": 6,
+        "largest_fraction": 0.9976,
+        "flags": [
+          "FRAGMENTED(6)"
+        ]
+      },
+      {
+        "name": "vertebrae_C2",
+        "voxels": 31514,
+        "volume_cm3": 18.4,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.47
+      },
+      {
+        "name": "vertebrae_C3",
+        "voxels": 21464,
+        "volume_cm3": 12.6,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 0.98
+      },
+      {
+        "name": "vertebrae_C4",
+        "voxels": 21874,
+        "volume_cm3": 12.8,
+        "components": 3,
+        "largest_fraction": 0.9943,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.02
+      },
+      {
+        "name": "vertebrae_C5",
+        "voxels": 24575,
+        "volume_cm3": 14.4,
+        "components": 2,
+        "largest_fraction": 0.9995,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.12
+      },
+      {
+        "name": "vertebrae_C6",
+        "voxels": 27193,
+        "volume_cm3": 15.9,
+        "components": 8,
+        "largest_fraction": 0.9941,
+        "flags": [
+          "FRAGMENTED(8)"
+        ],
+        "size_ratio_vs_neighbors": 1.11
+      },
+      {
+        "name": "vertebrae_C7",
+        "voxels": 29774,
+        "volume_cm3": 17.4,
+        "components": 5,
+        "largest_fraction": 0.9828,
+        "flags": [
+          "FRAGMENTED(5)"
+        ],
+        "size_ratio_vs_neighbors": 1.09
+      },
+      {
+        "name": "vertebrae_T1",
+        "voxels": 39507,
+        "volume_cm3": 23.1,
+        "components": 3,
+        "largest_fraction": 0.9998,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.33
+      },
+      {
+        "name": "vertebrae_T2",
+        "voxels": 40132,
+        "volume_cm3": 23.5,
+        "components": 2,
+        "largest_fraction": 0.9867,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.02
+      },
+      {
+        "name": "vertebrae_T3",
+        "voxels": 39795,
+        "volume_cm3": 23.3,
+        "components": 2,
+        "largest_fraction": 0.9677,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 0.99
+      },
+      {
+        "name": "vertebrae_T4",
+        "voxels": 42491,
+        "volume_cm3": 24.9,
+        "components": 3,
+        "largest_fraction": 0.9483,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.07
+      },
+      {
+        "name": "vertebrae_T5",
+        "voxels": 49972,
+        "volume_cm3": 29.2,
+        "components": 3,
+        "largest_fraction": 0.8627,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.18
+      },
+      {
+        "name": "vertebrae_T6",
+        "voxels": 55032,
+        "volume_cm3": 32.2,
+        "components": 7,
+        "largest_fraction": 0.8942,
+        "flags": [
+          "FRAGMENTED(7)"
+        ],
+        "size_ratio_vs_neighbors": 1.1
+      },
+      {
+        "name": "vertebrae_T7",
+        "voxels": 71018,
+        "volume_cm3": 41.5,
+        "components": 9,
+        "largest_fraction": 0.9938,
+        "flags": [
+          "FRAGMENTED(9)"
+        ],
+        "size_ratio_vs_neighbors": 1.29
+      },
+      {
+        "name": "vertebrae_T8",
+        "voxels": 95055,
+        "volume_cm3": 55.6,
+        "components": 9,
+        "largest_fraction": 0.998,
+        "flags": [
+          "FRAGMENTED(9)"
+        ],
+        "size_ratio_vs_neighbors": 1.55
+      },
+      {
+        "name": "vertebrae_T9",
+        "voxels": 61332,
+        "volume_cm3": 35.9,
+        "components": 10,
+        "largest_fraction": 0.6669,
+        "flags": [
+          "FRAGMENTED(10)"
+        ],
+        "size_ratio_vs_neighbors": 0.65
+      },
+      {
+        "name": "vertebrae_T10",
+        "voxels": 94999,
+        "volume_cm3": 55.6,
+        "components": 8,
+        "largest_fraction": 0.996,
+        "flags": [
+          "FRAGMENTED(8)"
+        ],
+        "size_ratio_vs_neighbors": 1.55
+      },
+      {
+        "name": "vertebrae_T11",
+        "voxels": 102421,
+        "volume_cm3": 59.9,
+        "components": 11,
+        "largest_fraction": 0.6753,
+        "flags": [
+          "FRAGMENTED(11)"
+        ],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T12",
+        "voxels": 105338,
+        "volume_cm3": 61.6,
+        "components": 9,
+        "largest_fraction": 0.8656,
+        "flags": [
+          "FRAGMENTED(9)"
+        ],
+        "size_ratio_vs_neighbors": 2.65
+      },
+      {
+        "name": "vertebrae_L1",
+        "voxels": 39807,
+        "volume_cm3": 23.3,
+        "components": 10,
+        "largest_fraction": 0.5031,
+        "flags": [
+          "FRAGMENTED(10)",
+          "SIZE(0.44)"
+        ],
+        "size_ratio_vs_neighbors": 0.44
+      },
+      {
+        "name": "vertebrae_L2",
+        "voxels": 90415,
+        "volume_cm3": 52.9,
+        "components": 4,
+        "largest_fraction": 0.995,
+        "flags": [
+          "FRAGMENTED(4)"
+        ],
+        "size_ratio_vs_neighbors": 2.27
+      },
+      {
+        "name": "vertebrae_L3",
+        "voxels": 117865,
+        "volume_cm3": 68.9,
+        "components": 3,
+        "largest_fraction": 0.9997,
+        "flags": [
+          "FRAGMENTED(3)"
+        ],
+        "size_ratio_vs_neighbors": 1.3
+      },
+      {
+        "name": "vertebrae_L4",
+        "voxels": 116695,
+        "volume_cm3": 68.2,
+        "components": 2,
+        "largest_fraction": 0.9999,
+        "flags": [
+          "FRAGMENTED(2)"
+        ],
+        "size_ratio_vs_neighbors": 1.1
+      },
+      {
+        "name": "vertebrae_L5",
+        "voxels": 106371,
+        "volume_cm3": 62.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": []
+      }
+    ],
+    "n_masks": 24,
+    "n_fragmented": 21,
+    "n_empty": 0,
+    "n_size_anomalies": 1,
+    "n_order_violations": 0
+  }
+]

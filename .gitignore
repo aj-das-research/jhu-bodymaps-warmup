@@ -7,6 +7,17 @@ AbdomenAtlasDemoPredict*/
 *.pth
 *.zip
 
+# Upstream clones (setup scripts) — keep third_party/README.md only
+third_party/SuPreM/
+third_party/ShapeKit/
+
+# Slurm stdout/stderr from batch submits
+reports/slurm/
+
+# Diagnostic figure binaries (keep reports/figures/README.md)
+reports/figures/**/*.png
+reports/figures/**/*.pdf
+
 __pycache__/
 .ipynb_checkpoints/
 .DS_Store
