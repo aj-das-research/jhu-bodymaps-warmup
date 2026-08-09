@@ -1,0 +1,314 @@
+{
+ "levels": {
+  "L5": {
+   "vol_cm3": 62.0,
+   "euler_chi": 0,
+   "solidity": 0.456,
+   "z_extent_mm": [
+    280.0,
+    330.4
+   ]
+  },
+  "L4": {
+   "vol_cm3": 67.7,
+   "euler_chi": -2,
+   "solidity": 0.446,
+   "z_extent_mm": [
+    316.4,
+    366.1
+   ]
+  },
+  "L3": {
+   "vol_cm3": 68.3,
+   "euler_chi": 0,
+   "solidity": 0.414,
+   "z_extent_mm": [
+    345.8,
+    399.7
+   ]
+  },
+  "L2": {
+   "vol_cm3": 71.7,
+   "euler_chi": -4,
+   "solidity": 0.531,
+   "z_extent_mm": [
+    391.3,
+    435.4
+   ]
+  },
+  "L1": {
+   "vol_cm3": 65.8,
+   "euler_chi": -14,
+   "solidity": 0.55,
+   "z_extent_mm": [
+    430.5,
+    472.5
+   ]
+  },
+  "T12": {
+   "vol_cm3": 53.5,
+   "euler_chi": -7,
+   "solidity": 0.572,
+   "z_extent_mm": [
+    465.5,
+    501.2
+   ]
+  },
+  "T11": {
+   "vol_cm3": 55.6,
+   "euler_chi": -1,
+   "solidity": 0.486,
+   "z_extent_mm": [
+    495.6,
+    538.3
+   ]
+  },
+  "T10": {
+   "vol_cm3": 51.3,
+   "euler_chi": -4,
+   "solidity": 0.473,
+   "z_extent_mm": [
+    522.2,
+    560.7
+   ]
+  },
+  "T9": {
+   "vol_cm3": 42.7,
+   "euler_chi": -8,
+   "solidity": 0.472,
+   "z_extent_mm": [
+    550.2,
+    587.3
+   ]
+  },
+  "T8": {
+   "vol_cm3": 38.5,
+   "euler_chi": -6,
+   "solidity": 0.554,
+   "z_extent_mm": [
+    571.2,
+    602.0
+   ]
+  },
+  "T7": {
+   "vol_cm3": 44.2,
+   "euler_chi": -20,
+   "solidity": 0.359,
+   "z_extent_mm": [
+    592.9,
+    639.8
+   ]
+  },
+  "T6": {
+   "vol_cm3": 30.8,
+   "euler_chi": -19,
+   "solidity": 0.495,
+   "z_extent_mm": [
+    613.9,
+    662.2
+   ]
+  },
+  "T5": {
+   "vol_cm3": 26.9,
+   "euler_chi": -12,
+   "solidity": 0.471,
+   "z_extent_mm": [
+    637.7,
+    674.1
+   ]
+  },
+  "T4": {
+   "vol_cm3": 23.7,
+   "euler_chi": -1,
+   "solidity": 0.425,
+   "z_extent_mm": [
+    658.7,
+    699.3
+   ]
+  },
+  "T3": {
+   "vol_cm3": 22.5,
+   "euler_chi": 0,
+   "solidity": 0.381,
+   "z_extent_mm": [
+    678.3,
+    720.3
+   ]
+  },
+  "T2": {
+   "vol_cm3": 23.2,
+   "euler_chi": 0,
+   "solidity": 0.364,
+   "z_extent_mm": [
+    701.4,
+    741.3
+   ]
+  },
+  "T1": {
+   "vol_cm3": 23.1,
+   "euler_chi": 0,
+   "solidity": 0.392,
+   "z_extent_mm": [
+    722.4,
+    758.1
+   ]
+  },
+  "C7": {
+   "vol_cm3": 17.1,
+   "euler_chi": -3,
+   "solidity": 0.393,
+   "z_extent_mm": [
+    742.7,
+    774.9
+   ]
+  },
+  "C6": {
+   "vol_cm3": 15.9,
+   "euler_chi": 0,
+   "solidity": 0.416,
+   "z_extent_mm": [
+    761.6,
+    792.4
+   ]
+  },
+  "C5": {
+   "vol_cm3": 14.3,
+   "euler_chi": -2,
+   "solidity": 0.429,
+   "z_extent_mm": [
+    780.5,
+    807.8
+   ]
+  },
+  "C4": {
+   "vol_cm3": 12.7,
+   "euler_chi": 0,
+   "solidity": 0.455,
+   "z_extent_mm": [
+    799.4,
+    824.6
+   ]
+  },
+  "C3": {
+   "vol_cm3": 12.5,
+   "euler_chi": 0,
+   "solidity": 0.468,
+   "z_extent_mm": [
+    815.5,
+    842.8
+   ]
+  },
+  "C2": {
+   "vol_cm3": 18.4,
+   "euler_chi": 0,
+   "solidity": 0.483,
+   "z_extent_mm": [
+    833.7,
+    873.6
+   ]
+  },
+  "C1": {
+   "vol_cm3": 16.1,
+   "euler_chi": 0,
+   "solidity": 0.426,
+   "z_extent_mm": [
+    851.9,
+    876.4
+   ]
+  }
+ },
+ "pairs": {
+  "C1|C2": {
+   "z_overlap_mm": 21.7,
+   "contact_area_mm2": 320.0
+  },
+  "C2|C3": {
+   "z_overlap_mm": 9.1,
+   "contact_area_mm2": 305.0
+  },
+  "C3|C4": {
+   "z_overlap_mm": 9.1,
+   "contact_area_mm2": 253.0
+  },
+  "C4|C5": {
+   "z_overlap_mm": 8.4,
+   "contact_area_mm2": 297.0
+  },
+  "C5|C6": {
+   "z_overlap_mm": 11.9,
+   "contact_area_mm2": 388.0
+  },
+  "C6|C7": {
+   "z_overlap_mm": 13.3,
+   "contact_area_mm2": 343.0
+  },
+  "C7|T1": {
+   "z_overlap_mm": 15.4,
+   "contact_area_mm2": 288.0
+  },
+  "T1|T2": {
+   "z_overlap_mm": 18.9,
+   "contact_area_mm2": 248.0
+  },
+  "T2|T3": {
+   "z_overlap_mm": 18.9,
+   "contact_area_mm2": 236.0
+  },
+  "T3|T4": {
+   "z_overlap_mm": 21.0,
+   "contact_area_mm2": 283.0
+  },
+  "T4|T5": {
+   "z_overlap_mm": 15.4,
+   "contact_area_mm2": 104.0
+  },
+  "T5|T6": {
+   "z_overlap_mm": 24.5,
+   "contact_area_mm2": 605.0
+  },
+  "T6|T7": {
+   "z_overlap_mm": 25.9,
+   "contact_area_mm2": 288.0
+  },
+  "T7|T8": {
+   "z_overlap_mm": 9.1,
+   "contact_area_mm2": 701.0
+  },
+  "T8|T9": {
+   "z_overlap_mm": 16.1,
+   "contact_area_mm2": 682.0
+  },
+  "T9|T10": {
+   "z_overlap_mm": 10.5,
+   "contact_area_mm2": 483.0
+  },
+  "T10|T11": {
+   "z_overlap_mm": 16.1,
+   "contact_area_mm2": 1053.0
+  },
+  "T11|T12": {
+   "z_overlap_mm": 5.6,
+   "contact_area_mm2": 317.0
+  },
+  "T12|L1": {
+   "z_overlap_mm": 7.0,
+   "contact_area_mm2": 223.0
+  },
+  "L1|L2": {
+   "z_overlap_mm": 4.9,
+   "contact_area_mm2": 563.0
+  },
+  "L2|L3": {
+   "z_overlap_mm": 8.4,
+   "contact_area_mm2": 114.0
+  },
+  "L3|L4": {
+   "z_overlap_mm": 20.3,
+   "contact_area_mm2": 448.0
+  },
+  "L4|L5": {
+   "z_overlap_mm": 14.0,
+   "contact_area_mm2": 182.0
+  }
+ }
+}

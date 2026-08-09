@@ -4,42 +4,42 @@
     "masks": [
       {
         "name": "vertebrae_C1",
-        "voxels": 9510,
-        "volume_cm3": 14.5,
+        "voxels": 9592,
+        "volume_cm3": 14.6,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": []
       },
       {
         "name": "vertebrae_C2",
-        "voxels": 12181,
-        "volume_cm3": 18.6,
+        "voxels": 12103,
+        "volume_cm3": 18.5,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.8
+        "size_ratio_vs_neighbors": 1.84
       },
       {
         "name": "vertebrae_C3",
-        "voxels": 6755,
-        "volume_cm3": 10.3,
+        "voxels": 6560,
+        "volume_cm3": 10.0,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 0.87
+        "size_ratio_vs_neighbors": 0.85
       },
       {
         "name": "vertebrae_C4",
-        "voxels": 7762,
+        "voxels": 7738,
         "volume_cm3": 11.8,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.16
+        "size_ratio_vs_neighbors": 1.18
       },
       {
         "name": "vertebrae_C5",
-        "voxels": 6680,
+        "voxels": 6687,
         "volume_cm3": 10.2,
         "components": 1,
         "largest_fraction": 1.0,
@@ -48,52 +48,52 @@
       },
       {
         "name": "vertebrae_C6",
-        "voxels": 7542,
-        "volume_cm3": 11.5,
+        "voxels": 7495,
+        "volume_cm3": 11.4,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.13
+        "size_ratio_vs_neighbors": 1.12
       },
       {
         "name": "vertebrae_C7",
-        "voxels": 11689,
-        "volume_cm3": 17.8,
+        "voxels": 11990,
+        "volume_cm3": 18.3,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.55
+        "size_ratio_vs_neighbors": 1.6
       },
       {
         "name": "vertebrae_T1",
-        "voxels": 13899,
-        "volume_cm3": 21.2,
+        "voxels": 13988,
+        "volume_cm3": 21.3,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.19
+        "size_ratio_vs_neighbors": 1.17
       },
       {
         "name": "vertebrae_T2",
-        "voxels": 13317,
-        "volume_cm3": 20.3,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.01
-      },
-      {
-        "name": "vertebrae_T3",
-        "voxels": 13214,
+        "voxels": 13223,
         "volume_cm3": 20.2,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 0.99
+        "size_ratio_vs_neighbors": 1.0
+      },
+      {
+        "name": "vertebrae_T3",
+        "voxels": 13222,
+        "volume_cm3": 20.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.0
       },
       {
         "name": "vertebrae_T4",
-        "voxels": 14286,
+        "voxels": 14303,
         "volume_cm3": 21.8,
         "components": 1,
         "largest_fraction": 1.0,
@@ -102,35 +102,35 @@
       },
       {
         "name": "vertebrae_T5",
-        "voxels": 15375,
-        "volume_cm3": 23.5,
+        "voxels": 15262,
+        "volume_cm3": 23.3,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.07
+      },
+      {
+        "name": "vertebrae_T6",
+        "voxels": 16435,
+        "volume_cm3": 25.1,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
         "size_ratio_vs_neighbors": 1.08
       },
       {
-        "name": "vertebrae_T6",
-        "voxels": 16366,
-        "volume_cm3": 25.0,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.06
-      },
-      {
         "name": "vertebrae_T7",
-        "voxels": 17907,
-        "volume_cm3": 27.3,
+        "voxels": 17823,
+        "volume_cm3": 27.2,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.09
+        "size_ratio_vs_neighbors": 1.08
       },
       {
         "name": "vertebrae_T8",
-        "voxels": 19620,
-        "volume_cm3": 29.9,
+        "voxels": 19644,
+        "volume_cm3": 30.0,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -138,16 +138,16 @@
       },
       {
         "name": "vertebrae_T9",
-        "voxels": 20430,
-        "volume_cm3": 31.2,
+        "voxels": 20317,
+        "volume_cm3": 31.0,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.04
+        "size_ratio_vs_neighbors": 1.03
       },
       {
         "name": "vertebrae_T10",
-        "voxels": 24434,
+        "voxels": 24474,
         "volume_cm3": 37.3,
         "components": 1,
         "largest_fraction": 1.0,
@@ -156,8 +156,8 @@
       },
       {
         "name": "vertebrae_T11",
-        "voxels": 24914,
-        "volume_cm3": 38.0,
+        "voxels": 24984,
+        "volume_cm3": 38.1,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -165,7 +165,7 @@
       },
       {
         "name": "vertebrae_T12",
-        "voxels": 28152,
+        "voxels": 28158,
         "volume_cm3": 43.0,
         "components": 1,
         "largest_fraction": 1.0,
@@ -174,8 +174,8 @@
       },
       {
         "name": "vertebrae_L1",
-        "voxels": 28877,
-        "volume_cm3": 44.1,
+        "voxels": 28940,
+        "volume_cm3": 44.2,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -183,17 +183,17 @@
       },
       {
         "name": "vertebrae_L2",
-        "voxels": 31201,
-        "volume_cm3": 47.6,
+        "voxels": 31102,
+        "volume_cm3": 47.5,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.08
+        "size_ratio_vs_neighbors": 1.07
       },
       {
         "name": "vertebrae_L3",
-        "voxels": 37368,
-        "volume_cm3": 57.0,
+        "voxels": 37477,
+        "volume_cm3": 57.2,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -201,8 +201,8 @@
       },
       {
         "name": "vertebrae_L4",
-        "voxels": 38185,
-        "volume_cm3": 58.3,
+        "voxels": 38309,
+        "volume_cm3": 58.5,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -210,7 +210,7 @@
       },
       {
         "name": "vertebrae_L5",
-        "voxels": 37805,
+        "voxels": 37786,
         "volume_cm3": 57.7,
         "components": 1,
         "largest_fraction": 1.0,
@@ -228,7 +228,7 @@
     "masks": [
       {
         "name": "vertebrae_C1",
-        "voxels": 27459,
+        "voxels": 27597,
         "volume_cm3": 16.1,
         "components": 1,
         "largest_fraction": 1.0,
@@ -236,7 +236,7 @@
       },
       {
         "name": "vertebrae_C2",
-        "voxels": 31514,
+        "voxels": 31460,
         "volume_cm3": 18.4,
         "components": 1,
         "largest_fraction": 1.0,
@@ -245,8 +245,8 @@
       },
       {
         "name": "vertebrae_C3",
-        "voxels": 21464,
-        "volume_cm3": 12.6,
+        "voxels": 21445,
+        "volume_cm3": 12.5,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -254,7 +254,7 @@
       },
       {
         "name": "vertebrae_C4",
-        "voxels": 21749,
+        "voxels": 21718,
         "volume_cm3": 12.7,
         "components": 1,
         "largest_fraction": 1.0,
@@ -263,8 +263,8 @@
       },
       {
         "name": "vertebrae_C5",
-        "voxels": 24563,
-        "volume_cm3": 14.4,
+        "voxels": 24484,
+        "volume_cm3": 14.3,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -272,16 +272,16 @@
       },
       {
         "name": "vertebrae_C6",
-        "voxels": 27033,
-        "volume_cm3": 15.8,
+        "voxels": 27186,
+        "volume_cm3": 15.9,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
-        "size_ratio_vs_neighbors": 1.1
+        "size_ratio_vs_neighbors": 1.11
       },
       {
         "name": "vertebrae_C7",
-        "voxels": 29263,
+        "voxels": 29303,
         "volume_cm3": 17.1,
         "components": 1,
         "largest_fraction": 1.0,
@@ -290,7 +290,7 @@
       },
       {
         "name": "vertebrae_T1",
-        "voxels": 39499,
+        "voxels": 39494,
         "volume_cm3": 23.1,
         "components": 1,
         "largest_fraction": 1.0,
@@ -299,7 +299,7 @@
       },
       {
         "name": "vertebrae_T2",
-        "voxels": 39599,
+        "voxels": 39622,
         "volume_cm3": 23.2,
         "components": 1,
         "largest_fraction": 1.0,
@@ -308,7 +308,7 @@
       },
       {
         "name": "vertebrae_T3",
-        "voxels": 38511,
+        "voxels": 38470,
         "volume_cm3": 22.5,
         "components": 1,
         "largest_fraction": 1.0,
@@ -317,8 +317,8 @@
       },
       {
         "name": "vertebrae_T4",
-        "voxels": 40296,
-        "volume_cm3": 23.6,
+        "voxels": 40476,
+        "volume_cm3": 23.7,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
@@ -326,97 +326,97 @@
       },
       {
         "name": "vertebrae_T5",
-        "voxels": 50577,
-        "volume_cm3": 29.6,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.26
-      },
-      {
-        "name": "vertebrae_T6",
-        "voxels": 48904,
-        "volume_cm3": 28.6,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 0.97
-      },
-      {
-        "name": "vertebrae_T7",
-        "voxels": 68498,
-        "volume_cm3": 40.1,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.4
-      },
-      {
-        "name": "vertebrae_T8",
-        "voxels": 68143,
-        "volume_cm3": 39.9,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 0.99
-      },
-      {
-        "name": "vertebrae_T9",
-        "voxels": 69409,
-        "volume_cm3": 40.6,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.02
-      },
-      {
-        "name": "vertebrae_T10",
-        "voxels": 90273,
-        "volume_cm3": 52.8,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.3
-      },
-      {
-        "name": "vertebrae_T11",
-        "voxels": 92053,
-        "volume_cm3": 53.8,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.02
-      },
-      {
-        "name": "vertebrae_T12",
-        "voxels": 93457,
-        "volume_cm3": 54.7,
-        "components": 1,
-        "largest_fraction": 1.0,
-        "flags": [],
-        "size_ratio_vs_neighbors": 1.02
-      },
-      {
-        "name": "vertebrae_L1",
-        "voxels": 106572,
-        "volume_cm3": 62.3,
+        "voxels": 45942,
+        "volume_cm3": 26.9,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
         "size_ratio_vs_neighbors": 1.14
       },
       {
-        "name": "vertebrae_L2",
-        "voxels": 117825,
-        "volume_cm3": 68.9,
+        "name": "vertebrae_T6",
+        "voxels": 52741,
+        "volume_cm3": 30.8,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.15
+      },
+      {
+        "name": "vertebrae_T7",
+        "voxels": 75624,
+        "volume_cm3": 44.2,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.43
+      },
+      {
+        "name": "vertebrae_T8",
+        "voxels": 65904,
+        "volume_cm3": 38.5,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 0.9
+      },
+      {
+        "name": "vertebrae_T9",
+        "voxels": 73083,
+        "volume_cm3": 42.7,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": [],
         "size_ratio_vs_neighbors": 1.11
       },
       {
+        "name": "vertebrae_T10",
+        "voxels": 87753,
+        "volume_cm3": 51.3,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.2
+      },
+      {
+        "name": "vertebrae_T11",
+        "voxels": 95017,
+        "volume_cm3": 55.6,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.08
+      },
+      {
+        "name": "vertebrae_T12",
+        "voxels": 91459,
+        "volume_cm3": 53.5,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 0.96
+      },
+      {
+        "name": "vertebrae_L1",
+        "voxels": 112523,
+        "volume_cm3": 65.8,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.23
+      },
+      {
+        "name": "vertebrae_L2",
+        "voxels": 122655,
+        "volume_cm3": 71.7,
+        "components": 1,
+        "largest_fraction": 1.0,
+        "flags": [],
+        "size_ratio_vs_neighbors": 1.09
+      },
+      {
         "name": "vertebrae_L3",
-        "voxels": 116844,
+        "voxels": 116759,
         "volume_cm3": 68.3,
         "components": 1,
         "largest_fraction": 1.0,
@@ -425,7 +425,7 @@
       },
       {
         "name": "vertebrae_L4",
-        "voxels": 115744,
+        "voxels": 115834,
         "volume_cm3": 67.7,
         "components": 1,
         "largest_fraction": 1.0,
@@ -434,8 +434,8 @@
       },
       {
         "name": "vertebrae_L5",
-        "voxels": 105785,
-        "volume_cm3": 61.9,
+        "voxels": 105965,
+        "volume_cm3": 62.0,
         "components": 1,
         "largest_fraction": 1.0,
         "flags": []

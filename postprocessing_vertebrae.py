@@ -36,10 +36,20 @@ Pipeline (all actions QA-logged per case):
              low-HU clefts, which is where anatomy separates. Fragments and
              pooled mass are reclaimed by whichever level reaches them
              through bone first.
+           - cut surfaces tilt with the column: segment membership uses the
+             first-order arc-length projection onto the centerline tangent,
+             clipped to +/-6 mm so it stays monotone off-axis.
+           - arch phase: posterior elements are repartitioned by erosion
+             splitting - eroding the arch domain ~2.2 mm disconnects it at
+             the thin facet waists while laminae stay attached to their own
+             pedicle; each eroded component joins the level whose body it
+             touches, then the shell is reconstructed by uniform BFS.
            - guards: C1/C2 skipped (no disc plane at the atlas/axis), band
              skipped when the expected disc count cannot be resolved, and
              the whole band reverts unless the audit strictly improves.
-  Stage 3  enclosed-hole filling + bounded volume-preserving smoothing
+  Stage 3  interface regularization (iterated 26-neighborhood majority vote
+           on label-label interfaces), orphan-component absorption, enclosed-
+           hole + directional pit filling, and bounded volume-preserving smoothing
            (Gaussian-smoothed SDT, volume-preserving iso-level by bisection,
            changes confined to +/-1.5 mm, additions bone-gated; a label
            reverts if Dice vs its pre-smooth mask drops below 0.97 or its
@@ -53,7 +63,7 @@ Verified on the two AbdomenAtlasDemo cases (identical parameters):
     baseline removes them).
   BDMAP_00000031 (sick):  21 fragmented, mass misassignment T8..L2 with
     L1 at 23.3 cm3 vs ~60 cm3 neighbors -> all clean; L1 restored to
-    64 cm3 by re-arbitration at the detected disc planes; the ShapeKit
+    ~65 cm3 by re-arbitration at the detected disc planes; the ShapeKit
     baseline instead deepens the error (L1 11.6 cm3, SIZE 0.20).
 
 Dependencies: numpy, scipy, nibabel, scikit-image, cc3d (connected-components-3d).
@@ -105,6 +115,7 @@ P = {
     "max_body_height_mm": 45.0, "dp_beta": 2.0, "pin_lo_mm": 8.0, "pin_hi_mm": 35.0,
     # arbitration domain
     "seed_margin_mm": 3.0, "seed_radius_mm": 14.0, "halo_mm": 2.5, "band_pad_mm": 4.0,
+    "arch_erode_mm": 2.2,
     # smoothing
     "sigma_mm": 1.2, "max_dev_mm": 1.5, "vol_tol": 0.01, "min_dice": 0.97,
     "smooth_pad_mm": 5.0,
@@ -424,16 +435,32 @@ def disc_minima(rho_s, z_lo, z_hi, n_cuts, zooms, pin_lo, pin_hi):
     return sorted(int(peaks[q]) + z_lo for q in set(picks))
 
 
-def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms, vox_mm3, qa):
+def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms,
+                   vox_mm3, qa):
+    """Re-arbitrate one contiguous suspect band (v2 geometry).
+
+    v2 upgrades over the flat-z version:
+      - ARC-LENGTH OBLIQUE CUTS: segment membership uses s = first-order
+        projection onto the column centerline tangent, so cut planes tilt with
+        kyphosis instead of clipping tilted bodies with axial guillotines.
+      - AGREEMENT-EXTENDED SEEDS: body-core seeds grow by geodesic propagation
+        through voxels whose CURRENT label already matches the segment (and
+        whose s lies in-segment), giving each level arch seeds wherever the
+        model already agreed; only genuinely contested bone is left to race.
+      - EDT-PRIORITY WATERSHED: flood priority = -distance-to-background, the
+        classic touching-object splitter: thick masses (bodies, laminae) are
+        claimed first and fronts meet at thin waists, which anatomically are
+        the facet joints and the pars, not arbitrary mid-arch loci.
+    """
     bone = ct >= P["bone_hu"]
     band_ids = [NAME_TO_ID[n] for n in band]
     band_mask = np.isin(seg, band_ids)
-    pool = np.isin(raw, band_ids) & (seg == 0) & bone
+    pool = (np.isin(raw, band_ids)) & (seg == 0) & bone
     zsel = np.nonzero((band_mask | pool).any(axis=(0, 1)))[0]
     pad = int(P["band_pad_mm"] / zooms[2]) + 1
     z0 = max(int(zsel[0]) - pad, 0)
     z1 = min(int(zsel[-1]) + pad + 1, seg.shape[2])
-    rec = {"levels": band}
+    rec = {"levels": band, "z_range_crop": [int(z0), int(z1)]}
     qa["bands"].append(rec)
 
     def centroid_z(name):
@@ -442,6 +469,7 @@ def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms, vox_mm
 
     ups = sorted((NAME_TO_ID[n], centroid_z(n)) for n in band if centroid_z(n) is not None)
     z_up = True if len(ups) < 2 else ups[-1][1] >= ups[0][1]
+    rec["z_increases_toward_head"] = bool(z_up)
     lo_name, hi_name = (neighbors if z_up else neighbors[::-1])
     w_lo = centroid_z(lo_name) if lo_name else None
     w_hi = centroid_z(hi_name) if hi_name else None
@@ -456,50 +484,127 @@ def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms, vox_mm
         return None
     lo_cut = found.pop(0) if w_lo is not None else z0
     hi_cut = found.pop(-1) if w_hi is not None else z1
-    cuts = [lo_cut] + found + [hi_cut]
-    rec["disc_cuts_z"] = cuts
-    segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
-    ids_by_z = sorted(band_ids) if z_up else sorted(band_ids, reverse=True)
-    assign = dict(zip(ids_by_z, segments))
-    z0, z1 = int(lo_cut), int(hi_cut)
-    rec["cleared_out_of_band_mm3"] = round(
-        float(band_mask[:, :, :z0].sum() + band_mask[:, :, z1:].sum()) * vox_mm3, 1)
+    cuts_z = [int(lo_cut)] + [int(f) for f in found] + [int(hi_cut)]
+    rec["disc_cuts_z"] = cuts_z
 
-    slab = slice(z0, z1)
+    # ---- arc-length field ----------------------------------------------
+    zmm = np.asarray(zooms, dtype=np.float64)
+    nzc = seg.shape[2]
+    okc = ~np.isnan(cxs)
+    Pmm = np.c_[np.where(okc, cxs, 0) * zmm[0], np.where(okc, cys, 0) * zmm[1],
+                np.arange(nzc) * zmm[2]]
+    T = np.zeros_like(Pmm)
+    idxc = np.nonzero(okc)[0]
+    g = np.gradient(ndimage.gaussian_filter1d(Pmm[idxc], sigma=8.0 / zmm[2], axis=0), axis=0)
+    g /= np.maximum(np.linalg.norm(g, axis=1, keepdims=True), 1e-6)
+    T[idxc] = g
+    step_len = np.zeros(nzc)
+    step_len[idxc[1:]] = np.linalg.norm(np.diff(Pmm[idxc], axis=0), axis=1)
+    s_axis = np.cumsum(step_len)
+    s_cuts = [float(s_axis[c]) for c in cuts_z]
+
+    tilt_pad = int(10.0 / zooms[2])
+    z0e, z1e = max(cuts_z[0] - tilt_pad, 0), min(cuts_z[-1] + tilt_pad + 1, nzc)
+    slab = slice(z0e, z1e)
     seg_s, bone_s = seg[:, :, slab], bone[:, :, slab]
     band_s, pool_s = band_mask[:, :, slab], pool[:, :, slab]
-    eligible_s = band_s | pool_s
-    margin = int(P["seed_margin_mm"] / zooms[2])
-    xx, yy = np.meshgrid(np.arange(seg.shape[0]), np.arange(seg.shape[1]), indexing="ij")
+    xx, yy = np.meshgrid(np.arange(seg.shape[0], dtype=np.float32),
+                         np.arange(seg.shape[1], dtype=np.float32), indexing="ij")
+    s_f = np.empty(seg_s.shape, dtype=np.float32)
+    for z in range(z0e, z1e):
+        dx = (xx - np.float32(cxs[z] if okc[z] else 0)) * np.float32(zmm[0])
+        dy = (yy - np.float32(cys[z] if okc[z] else 0)) * np.float32(zmm[1])
+        # oblique correction, clipped to +/-6 mm: full first-order tilt at the
+        # body radius (where cuts matter), saturated at rib/process radius
+        # where the per-z linearization folds (validated visually)
+        corr = np.clip(dx * np.float32(T[z, 0]) + dy * np.float32(T[z, 1]), -6.0, 6.0)
+        s_f[:, :, z - z0e] = np.float32(s_axis[z]) + corr
+
+    ids_by_z = sorted(band_ids) if z_up else sorted(band_ids, reverse=True)
+    seg_ranges = list(zip(s_cuts[:-1], s_cuts[1:]))
+    assign = dict(zip(ids_by_z, seg_ranges))
+    s_lo_all, s_hi_all = s_cuts[0], s_cuts[-1]
+
+    # ---- seeds: body core + agreement extension ------------------------
     markers = np.zeros(seg_s.shape, dtype=np.int32)
     r2 = P["seed_radius_mm"] ** 2
-    for lid, (a, b) in assign.items():
-        a2, b2 = (a + margin, b - margin) if b - a > 2 * margin else (a, b)
-        for z in range(max(a2, z0), min(b2, z1)):
-            if np.isnan(cxs[z]):
-                continue
-            d2 = ((xx - cxs[z]) * zooms[0]) ** 2 + ((yy - cys[z]) * zooms[1]) ** 2
-            sel2 = bone_s[:, :, z - z0] & (d2 <= r2) & eligible_s[:, :, z - z0]
-            markers[:, :, z - z0][sel2] = lid
-        if not (markers == lid).any():
+    margin = P["seed_margin_mm"]
+    d2_slab = np.empty(seg_s.shape, dtype=np.float32)
+    for z in range(z0e, z1e):
+        dx = (xx - np.float32(cxs[z] if okc[z] else 0)) * np.float32(zmm[0])
+        dy = (yy - np.float32(cys[z] if okc[z] else 0)) * np.float32(zmm[1])
+        d2_slab[:, :, z - z0e] = dx * dx + dy * dy
+    eligible_s = band_s | pool_s
+    for lid, (sa, sb) in assign.items():
+        seeds = (bone_s & eligible_s & (d2_slab <= r2)
+                 & (s_f >= sa + margin) & (s_f <= sb - margin))
+        if not seeds.any():
             er = ndimage.binary_erosion(seg_s == lid, structure=STRUCT6, iterations=2)
-            markers[er if er.any() else (seg_s == lid)] = lid
+            seeds = er if er.any() else (seg_s == lid)
             qa["flags"].append(f"SEED_FALLBACK_{ID_TO_NAME[lid]}")
+        markers[seeds] = lid
+    rec["seed_cm3"] = {ID_TO_NAME[l]: round(float((markers == l).sum()) * vox_mm3 / 1000.0, 1)
+                       for l in assign}
 
+    # ---- domain + EDT-priority competition ------------------------------
+    st = ndimage.generate_binary_structure(3, 1)
     halo_it = int(max(np.round(P["halo_mm"] / np.asarray(zooms))))
-    grown = ndimage.binary_dilation(band_s | pool_s, structure=STRUCT6,
-                                    iterations=max(halo_it, 1))
+    grown = ndimage.binary_dilation(band_s | pool_s, structure=st, iterations=max(halo_it, 1))
     halo = grown & (seg_s == 0) & bone_s & ~pool_s
-    D = band_s | pool_s | halo
-    # uniform-speed geodesic competition; the bone mask carries the physics
+    D = (band_s | pool_s | halo) & (s_f >= s_lo_all) & (s_f <= s_hi_all)
+    markers[~D] = 0
+    # uniform-speed geodesic competition: distance is the cost. (A depth
+    # priority was tried and convicted: laminae form one connected deep river,
+    # so the first label entering ran the whole posterior column.)
     labels_ws = watershed(np.zeros(D.shape, dtype=np.uint8), markers=markers, mask=D)
+
+    # ---- phase 2: arch repartition by erosion-splitting ------------------
+    # The flood race misassigns posterior elements (spinous/laminae) because
+    # facet joints are bone-continuous. Geometry fix: in the arch domain,
+    # erode by ~2 mm - thin facet waists disconnect, laminae/spinous stay
+    # connected to their own pedicle - then attach each eroded component to
+    # the level whose phase-1 BODY it touches and reconstruct by uniform BFS.
+    rb2 = (P["seed_radius_mm"] + 4.0) ** 2
+    body_zone = d2_slab <= rb2
+    A = D & ~body_zone
+    if A.any():
+        edtA = ndimage.distance_transform_edt(A, sampling=zooms).astype(np.float32)
+        core_arch = A & (edtA >= P["arch_erode_mm"])
+        cc_arch = cc3d.connected_components(core_arch.astype(np.uint8), connectivity=26)
+        n_reassigned = 0
+        markers2 = np.where(D & body_zone, labels_ws, 0).astype(np.int32)
+        st1 = ndimage.generate_binary_structure(3, 1)
+        dil_it = int(np.ceil((P["arch_erode_mm"] + 1.0) / min(zooms)))
+        for comp_id in range(1, int(cc_arch.max()) + 1):
+            comp = cc_arch == comp_id
+            n_comp = int(comp.sum())
+            if n_comp < 20:
+                continue
+            ring = ndimage.binary_dilation(comp, structure=st1, iterations=dil_it) & body_zone & D
+            votes = labels_ws[ring]
+            votes = votes[votes > 0]
+            if votes.size < 10:
+                continue
+            ids, cnt = np.unique(votes, return_counts=True)
+            if cnt.max() / votes.size >= 0.7:
+                lid = int(ids[cnt.argmax()])
+                markers2[comp] = lid
+                n_reassigned += n_comp
+        labels_arch = watershed(np.zeros(D.shape, dtype=np.uint8), markers=markers2, mask=D)
+        changed = int(((labels_arch != labels_ws) & (labels_arch > 0)).sum())
+        keep = labels_arch > 0
+        labels_ws = np.where(keep, labels_arch, labels_ws)
+        rec["arch_phase2_changed_mm3"] = round(changed * vox_mm3, 1)
+
     out = seg.copy()
-    out[band_mask] = 0
+    out[band_mask] = 0  # includes out-of-band overreach, which is cleared
     out_s = out[:, :, slab]
     sel = labels_ws > 0
     out_s[sel] = labels_ws[sel].astype(seg.dtype)
     rec["unreached_pool_mm3"] = round(float((D & ~sel & (seg_s == 0)).sum()) * vox_mm3, 1)
+    rec["cleared_out_of_band_mm3"] = round(float((band_mask & (out == 0)).sum()) * vox_mm3, 1)
     return out
+
 
 
 def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
@@ -543,8 +648,78 @@ def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
     return out
 
 
+def majority_filter(seg, iters=3):
+    """Iterated 26-neighborhood majority vote on label-label interface voxels.
+
+    Collapses voxel-scale interdigitation between adjacent labels (the source
+    of spurious Euler handles). Label<->label swaps only; the mode must
+    strictly beat the current label locally, so the filter converges and is
+    approximately volume-preserving."""
+    offs = [(dx, dy, dz) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+            for dz in (-1, 0, 1) if (dx, dy, dz) != (0, 0, 0)]
+    out = seg.copy()
+    for _ in range(iters):
+        diff = np.zeros(out.shape, dtype=bool)
+        for ax in range(3):
+            s_hi = [slice(None)] * 3; s_lo = [slice(None)] * 3
+            s_hi[ax] = slice(1, None); s_lo[ax] = slice(None, -1)
+            x, y = out[tuple(s_hi)], out[tuple(s_lo)]
+            b = (x > 0) & (y > 0) & (x != y)
+            diff[tuple(s_hi)] |= b
+            diff[tuple(s_lo)] |= b
+        diff &= out > 0
+        pts = np.nonzero(diff)
+        n = pts[0].size
+        if n == 0:
+            break
+        counts = np.zeros((n, 25), dtype=np.uint8)
+        shp = out.shape
+        for dx, dy, dz in offs:
+            xx = np.clip(pts[0] + dx, 0, shp[0] - 1)
+            yy = np.clip(pts[1] + dy, 0, shp[1] - 1)
+            zz = np.clip(pts[2] + dz, 0, shp[2] - 1)
+            counts[np.arange(n), out[xx, yy, zz]] += 1
+        cur = out[pts]
+        lab_counts = counts[:, 1:]
+        mode = lab_counts.argmax(axis=1) + 1
+        swap = (mode != cur) & (lab_counts.max(axis=1) > counts[np.arange(n), cur])
+        if not swap.any():
+            break
+        out[pts[0][swap], pts[1][swap], pts[2][swap]] = mode[swap].astype(out.dtype)
+    return out
+
+
+def absorb_orphans(seg, vox_mm3, max_mm3=1200.0):
+    """Absorb non-largest components below max_mm3 into the label dominating
+    their shell (remove if speck-sized and shell-free)."""
+    out = seg.copy()
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        cc, counts = _components(out == lid)
+        if (counts > 0).sum() <= 1:
+            continue
+        main_id = int(counts.argmax())
+        for comp_id in np.nonzero(counts)[0]:
+            if comp_id == main_id or counts[comp_id] * vox_mm3 > max_mm3:
+                continue
+            comp = cc == comp_id
+            sl = _bbox_pad(ndimage.find_objects(comp.astype(np.uint8))[0],
+                           np.array([2, 2, 2]), seg.shape)
+            comp_l = comp[sl]
+            shell = ndimage.binary_dilation(comp_l, iterations=2) & ~comp_l
+            votes = out[sl][shell]
+            votes = votes[(votes != 0) & (votes != lid)]
+            if votes.size >= 5:
+                ids, cnt = np.unique(votes, return_counts=True)
+                out[comp] = int(ids[cnt.argmax()])
+            elif counts[comp_id] * vox_mm3 < 100.0:
+                out[comp] = 0
+    return out
+
+
 # ---------------------------------------------------------------- stage 3 --
 def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
+    seg = majority_filter(seg, iters=3)
+    seg = absorb_orphans(seg, vox_mm3)
     bone = ct >= P["bone_hu"]
     pad_vox = np.ceil(P["smooth_pad_mm"] / np.asarray(zooms))
     objs = ndimage.find_objects(seg)
@@ -552,7 +727,20 @@ def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
     for lid in [int(v) for v in np.unique(seg) if v != 0]:
         sl = _bbox_pad(objs[lid - 1], pad_vox, seg.shape)
         m = seg[sl] == lid
-        m_f = ndimage.binary_fill_holes(m)
+        others = (seg[sl] > 0) & ~m
+        m1 = ndimage.binary_fill_holes(m)
+        # directional pit/window filling: 2D holes in sagittal and coronal
+        # slices catch wall windows and tunnels that are not 3D-enclosed;
+        # axial is EXCLUDED so the vertebral canal is never filled.
+        for ax in (0, 1):
+            fill2d = np.zeros_like(m1)
+            for k in range(m1.shape[ax]):
+                idx = [slice(None)] * 3
+                idx[ax] = k
+                fill2d[tuple(idx)] = ndimage.binary_fill_holes(m1[tuple(idx)])
+            m1 |= fill2d & ~others
+        m_f = ndimage.binary_fill_holes(m1)
+        m_f &= ~others
         d_in = ndimage.distance_transform_edt(m_f, sampling=zooms)
         d_out = ndimage.distance_transform_edt(~m_f, sampling=zooms)
         sdt = (d_in - d_out).astype(np.float32)
@@ -604,7 +792,7 @@ def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
             out[sl][m_f] = lid
             out[sl][(out[sl] == lid) & ~m_f] = 0
             rec["reverted"] = True
-    return out
+    return absorb_orphans(out, vox_mm3)
 
 
 # --------------------------------------------------------------------- io --
