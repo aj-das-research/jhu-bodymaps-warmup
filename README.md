@@ -29,7 +29,7 @@ notebooks/BodyMaps_RA_warmup.ipynb   Colab: env, inference, error audit, refinem
 docs/official_warmup_spec.md    the official tutorial, transcribed
 docs/JHU_BodyMaps_RA_Prep_Guide.md   research briefing + positioning notes
 hpc guide/                      reusable CIAI cluster notes (not project-specific)
-reports/figures/raw_vs_shapekit/     diagnostic PNGs (gitignored binaries)
+reports/figures/raw_vs_shapekit/     diagnostic PNGs
 data/                           gitignored; created by the download script
 ```
 

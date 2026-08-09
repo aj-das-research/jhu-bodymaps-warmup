@@ -1,0 +1,87 @@
+[sbatch-shapekit] host=cn-02 job=154536
+[sbatch-shapekit] partition=cscc-cpu-p cpus=16 mem=131072MB
+[sbatch-shapekit] cases=BDMAP_00000031
+[sbatch-shapekit] start=2026-08-08T12:11:21+04:00
+[shapekit-run] checking affine reference 'vertebrae_L1.nii.gz' under each case ...
+[shapekit-run] cases:  BDMAP_00000031  (csv filter /home/abhijit.das/projects/jhu-bodymaps-warmup/reports/shapekit_logs/shapekit_cases_1718007.csv)
+[shapekit-run] removing stale/incomplete output: /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict_shapekit/BDMAP_00000031
+[shapekit-run] input:  /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict
+[shapekit-run] output: /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict_shapekit
+[shapekit-run] logs:   /home/abhijit.das/projects/jhu-bodymaps-warmup/reports/shapekit_logs
+[shapekit-run] cpus:   16
+[shapekit-run] config: /home/abhijit.das/projects/jhu-bodymaps-warmup/third_party/ShapeKit/config.yaml (affine ref = vertebrae_L1.nii.gz)
+[INFO] CSV filtering enabled: 1/2 cases kept
+[INFO] Starting... with 1 multiprocess ...
+[INFO] Input files dir: /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict
+[INFO] Output files dir: /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict_shapekit
+[INFO] Logging dir: /home/abhijit.das/projects/jhu-bodymaps-warmup/reports/shapekit_logs
+
+
+[shapekit-run] ShapeKit finished.
+[shapekit-run] re-auditing with conda env 'suprem' ...
+
+=== BDMAP_00000006: 24 vertebra masks | 0 fragmented, 0 empty, 0 size anomalies, 0 ordering violations ===
+  vertebrae_C1           vol=   14.1cm3 components= 1 largest=1.000           
+  vertebrae_C2           vol=   18.4cm3 components= 1 largest=1.000 ratio=1.79
+  vertebrae_C3           vol=   10.2cm3 components= 1 largest=1.000 ratio=0.87
+  vertebrae_C4           vol=   11.8cm3 components= 1 largest=1.000 ratio=1.16
+  vertebrae_C5           vol=   10.2cm3 components= 1 largest=1.000 ratio=0.89
+  vertebrae_C6           vol=   11.5cm3 components= 1 largest=1.000 ratio=1.13
+  vertebrae_C7           vol=   17.8cm3 components= 1 largest=1.000 ratio=1.55
+  vertebrae_T1           vol=   21.5cm3 components= 1 largest=1.000 ratio=1.21
+  vertebrae_T2           vol=   20.2cm3 components= 1 largest=1.000 ratio=1.00
+  vertebrae_T3           vol=   20.2cm3 components= 1 largest=1.000 ratio=1.00
+  vertebrae_T4           vol=   21.8cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T5           vol=   23.5cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T6           vol=   25.3cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T7           vol=   27.3cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T8           vol=   30.4cm3 components= 1 largest=1.000 ratio=1.11
+  vertebrae_T9           vol=   31.6cm3 components= 1 largest=1.000 ratio=1.04
+  vertebrae_T10          vol=   37.5cm3 components= 1 largest=1.000 ratio=1.19
+  vertebrae_T11          vol=   38.3cm3 components= 1 largest=1.000 ratio=1.02
+  vertebrae_T12          vol=   43.2cm3 components= 1 largest=1.000 ratio=1.13
+  vertebrae_L1           vol=   44.2cm3 components= 1 largest=1.000 ratio=1.02
+  vertebrae_L2           vol=   47.9cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_L3           vol=   57.2cm3 components= 1 largest=1.000 ratio=1.19
+  vertebrae_L4           vol=   58.5cm3 components= 1 largest=1.000 ratio=1.02
+  vertebrae_L5           vol=   57.9cm3 components= 1 largest=1.000           
+
+=== BDMAP_00000031: 24 vertebra masks | 0 fragmented, 0 empty, 2 size anomalies, 0 ordering violations ===
+  vertebrae_C1           vol=   16.0cm3 components= 1 largest=1.000           
+  vertebrae_C2           vol=   18.4cm3 components= 1 largest=1.000 ratio=1.47
+  vertebrae_C3           vol=   12.6cm3 components= 1 largest=1.000 ratio=0.99
+  vertebrae_C4           vol=   12.7cm3 components= 1 largest=1.000 ratio=1.01
+  vertebrae_C5           vol=   14.3cm3 components= 1 largest=1.000 ratio=1.12
+  vertebrae_C6           vol=   15.8cm3 components= 1 largest=1.000 ratio=1.11
+  vertebrae_C7           vol=   17.1cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T1           vol=   23.1cm3 components= 1 largest=1.000 ratio=1.35
+  vertebrae_T2           vol=   23.2cm3 components= 1 largest=1.000 ratio=1.03
+  vertebrae_T3           vol=   22.5cm3 components= 1 largest=1.000 ratio=0.97
+  vertebrae_T4           vol=   24.3cm3 components= 1 largest=1.000 ratio=1.08
+  vertebrae_T5           vol=   26.5cm3 components= 1 largest=1.000 ratio=1.09
+  vertebrae_T6           vol=   32.4cm3 components= 1 largest=1.000 ratio=1.22
+  vertebrae_T7           vol=   44.2cm3 components= 1 largest=1.000 ratio=1.37
+  vertebrae_T8           vol=   66.5cm3 components= 1 largest=1.000 ratio=2.78
+  vertebrae_T9           vol=   23.9cm3 components= 1 largest=1.000 ratio=0.36  <-- SIZE(0.36)
+  vertebrae_T10          vol=   73.8cm3 components= 1 largest=1.000 ratio=3.09
+  vertebrae_T11          vol=   48.6cm3 components= 1 largest=1.000 ratio=0.86
+  vertebrae_T12          vol=   56.3cm3 components= 1 largest=1.000 ratio=4.85
+  vertebrae_L1           vol=   11.6cm3 components= 1 largest=1.000 ratio=0.21  <-- SIZE(0.21)
+  vertebrae_L2           vol=   60.9cm3 components= 1 largest=1.000 ratio=5.25
+  vertebrae_L3           vol=   68.9cm3 components= 1 largest=1.000 ratio=1.13
+  vertebrae_L4           vol=   68.2cm3 components= 1 largest=1.000 ratio=1.10
+  vertebrae_L5           vol=   62.2cm3 components= 1 largest=1.000           
+
+TOTAL: 0 fragmented, 0 empty, 0 ordering violations across 2 case(s)
+Report written to reports/audit_shapekit.json
+[shapekit-run] done.
+[shapekit-run]   ShapeKit out: /home/abhijit.das/projects/jhu-bodymaps-warmup/AbdomenAtlasDemoPredict_shapekit
+[shapekit-run]   audit:        /home/abhijit.das/projects/jhu-bodymaps-warmup/reports/audit_shapekit.json
+[shapekit-run]   compare vs:   /home/abhijit.das/projects/jhu-bodymaps-warmup/reports/audit_before.json
+[shapekit-run]   (optional)    python scripts/compare_audits.py \
+[shapekit-run]                   --before reports/audit_before.json \
+[shapekit-run]                   --after  reports/audit_shapekit.json
+[shapekit-run]   Phase-B ask:  did FRAGMENTED drop? did L1 SIZE(0.44) / T9 volume dip survive?
+[sbatch-shapekit] end=2026-08-08T17:19:12+04:00
+[sbatch-shapekit] next: conda activate suprem && python scripts/compare_audits.py \
+         --before reports/audit_before.json --after reports/audit_shapekit.json

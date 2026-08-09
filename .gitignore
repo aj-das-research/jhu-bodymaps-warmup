@@ -1,22 +1,14 @@
-# Data and model weights are fetched by scripts/download_data.sh - never committed
+# Bulk inputs fetched by scripts/download_data.sh — individual files exceed
+# GitHub's 100 MB hard limit (ct 327 MB, tarball 439 MB, checkpoint 754 MB)
 data/
-AbdomenAtlasDemo/
-AbdomenAtlasDemoPredict*/
-*.nii.gz
-*.tar.gz
 *.pth
-*.zip
 
-# Upstream clones (setup scripts) — keep third_party/README.md only
+# Upstream clones (nested git repos; recreated by the setup scripts)
 third_party/SuPreM/
 third_party/ShapeKit/
 
-# Slurm stdout/stderr from batch submits
-reports/slurm/
-
-# Diagnostic figure binaries (keep reports/figures/README.md)
-reports/figures/**/*.png
-reports/figures/**/*.pdf
+# Sandbox trash pending manual delete
+_to_delete/
 
 __pycache__/
 .ipynb_checkpoints/
