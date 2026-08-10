@@ -14,17 +14,19 @@ Recolors what the model got wrong. Never deletes real bone. CPU-only, one file.<
 Segmentation models label vertebrae well until anatomy gets hard: scoliosis,
 collapsed discs, DISH/ankylosis, and steeply overlapping spinous processes make
 them fragment labels, misplace whole levels, and paint one vertebra's bone with
-its neighbor's color. Delete-only cleanup tools (like the ShapeKit baseline
-this project is named after, and goes beyond) remove the noise but also remove
-real bone — and cannot give a mislabeled process back to its true owner.
+its neighbor's color. Delete-only cleanup tools (like the
+[ShapeKit](https://github.com/BodyMaps/ShapeKit) baseline this project is named
+after, and goes beyond) remove the noise but also remove real bone — and cannot
+give a mislabeled process back to its true owner.
 
 **ShapeKit-Pro** (`postprocessing_vertebrae.py`, a single ~2k-line CPU-only
 file) takes the model's prediction plus the CT and *repairs the labels in
 place*: the raw prediction is the outer envelope, the CT is the only editor,
 and every stage carries its own defect meter and reverts itself if it cannot
-prove improvement. Validated on the two AbdomenAtlasDemo CT cases with SuPreM
-Swin UNETR predictions as input, against ShapeKit as the standing baseline —
-with identical parameters on both cases, no per-case tuning:
+prove improvement. Validated on the two AbdomenAtlasDemo CT cases with
+[SuPreM](https://github.com/MrGiovanni/SuPreM) Swin UNETR predictions as input,
+against [ShapeKit](https://github.com/BodyMaps/ShapeKit) as the standing
+baseline — with identical parameters on both cases, no per-case tuning:
 
 | case | raw model output | ShapeKit (delete-only baseline) | **ShapeKit-Pro** |
 |---|---|---|---|
@@ -491,11 +493,26 @@ same vertebra differently between the two combined files.
 <p align="center">ShapeKit-Pro is developed with the support of <b>MedOS</b> and the
 <b>Mohamed bin Zayed University of Artificial Intelligence (MBZUAI)</b>.</p>
 
+## Acknowledgements
+
+ShapeKit-Pro stands on two excellent open-source codebases — sincere thanks to
+their authors and maintainers:
+
+- **[SuPreM](https://github.com/MrGiovanni/SuPreM)** — the suite of pretrained
+  3D segmentation models whose Swin UNETR vertebra predictions are the input
+  this tool refines, and the source of the
+  **AbdomenAtlasDemo** dataset and the inference tooling used in Step 1
+  (cloned under `third_party/SuPreM/` by `scripts/setup_env_hpc.sh`).
+- **[ShapeKit](https://github.com/BodyMaps/ShapeKit)** — the anatomical
+  post-processing toolkit used as our comparison baseline throughout, and the
+  namesake this project aims to build beyond (cloned under
+  `third_party/ShapeKit/` by `scripts/setup_shapekit_hpc.sh`).
+
+Both are gitignored as `third_party/` clones and fetched by the setup scripts,
+so their code always comes from — and their credit always points to — the
+upstream repositories.
+
 ## Contact
 
 **Abhijit Das** — [abhijit.das@mbzuai.ac.ae](mailto:abhijit.das@mbzuai.ac.ae) ·
 [aj.das.research@gmail.com](mailto:aj.das.research@gmail.com)
-
-*SuPreM and ShapeKit are upstream projects cloned (gitignored) under
-`third_party/` by the setup scripts; AbdomenAtlasDemo is their public demo
-dataset.*
