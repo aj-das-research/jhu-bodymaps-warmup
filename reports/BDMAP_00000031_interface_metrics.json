@@ -1,0 +1,446 @@
+{
+ "raw": {
+  "levels": {
+   "C1": {
+    "cm3": 16.1,
+    "logres": 0.057
+   },
+   "C2": {
+    "cm3": 18.4,
+    "logres": 0.365
+   },
+   "C3": {
+    "cm3": 12.6,
+    "logres": 0.192
+   },
+   "C4": {
+    "cm3": 12.8,
+    "logres": 0.167
+   },
+   "C5": {
+    "cm3": 14.4,
+    "logres": 0.008
+   },
+   "C6": {
+    "cm3": 15.9,
+    "logres": 0.005
+   },
+   "C7": {
+    "cm3": 17.4,
+    "logres": 0.096
+   },
+   "T1": {
+    "cm3": 23.1,
+    "logres": 0.138
+   },
+   "T2": {
+    "cm3": 23.5,
+    "logres": 0.012
+   },
+   "T3": {
+    "cm3": 23.3,
+    "logres": 0.037
+   },
+   "T4": {
+    "cm3": 24.9,
+    "logres": 0.053
+   },
+   "T5": {
+    "cm3": 29.2,
+    "logres": 0.033
+   },
+   "T6": {
+    "cm3": 32.2,
+    "logres": 0.079
+   },
+   "T7": {
+    "cm3": 41.5,
+    "logres": 0.201
+   },
+   "T8": {
+    "cm3": 55.6,
+    "logres": 0.365
+   },
+   "T9": {
+    "cm3": 35.9,
+    "logres": 0.438
+   },
+   "T10": {
+    "cm3": 55.6,
+    "logres": 0.038
+   },
+   "T11": {
+    "cm3": 59.9,
+    "logres": 0.294
+   },
+   "T12": {
+    "cm3": 61.6,
+    "logres": 0.128
+   },
+   "L1": {
+    "cm3": 23.3,
+    "logres": 0.959
+   },
+   "L2": {
+    "cm3": 52.9,
+    "logres": 0.204
+   },
+   "L3": {
+    "cm3": 68.9,
+    "logres": 0.184
+   },
+   "L4": {
+    "cm3": 68.2,
+    "logres": 0.093
+   },
+   "L5": {
+    "cm3": 62.2,
+    "logres": 0.098
+   }
+  },
+  "pairs": {
+   "C1|C2": {
+    "contact_mm2": 364.0,
+    "planarity_mm": 2.03,
+    "si_overlap_mm": 22.4
+   },
+   "C2|C3": {
+    "contact_mm2": 296.0,
+    "planarity_mm": 1.72,
+    "si_overlap_mm": 9.1
+   },
+   "C3|C4": {
+    "contact_mm2": 233.0,
+    "planarity_mm": 0.6,
+    "si_overlap_mm": 9.1
+   },
+   "C4|C5": {
+    "contact_mm2": 405.0,
+    "planarity_mm": 3.85,
+    "si_overlap_mm": 25.2
+   },
+   "C5|C6": {
+    "contact_mm2": 457.0,
+    "planarity_mm": 2.11,
+    "si_overlap_mm": 19.6
+   },
+   "C6|C7": {
+    "contact_mm2": 476.0,
+    "planarity_mm": 6.55,
+    "si_overlap_mm": 211.4
+   },
+   "C7|T1": {
+    "contact_mm2": 300.0,
+    "planarity_mm": 1.87,
+    "si_overlap_mm": 36.4
+   },
+   "T1|T2": {
+    "contact_mm2": 248.0,
+    "planarity_mm": 0.81,
+    "si_overlap_mm": 19.6
+   },
+   "T2|T3": {
+    "contact_mm2": 344.0,
+    "planarity_mm": 1.71,
+    "si_overlap_mm": 21.0
+   },
+   "T3|T4": {
+    "contact_mm2": 345.0,
+    "planarity_mm": 6.96,
+    "si_overlap_mm": 31.5
+   },
+   "T4|T5": {
+    "contact_mm2": 764.0,
+    "planarity_mm": 4.0,
+    "si_overlap_mm": 37.1
+   },
+   "T5|T6": {
+    "contact_mm2": 1636.0,
+    "planarity_mm": 3.6,
+    "si_overlap_mm": 39.2
+   },
+   "T6|T7": {
+    "contact_mm2": 2132.0,
+    "planarity_mm": 7.93,
+    "si_overlap_mm": 39.2
+   },
+   "T7|T8": {
+    "contact_mm2": 4371.0,
+    "planarity_mm": 7.15,
+    "si_overlap_mm": 42.0
+   },
+   "T8|T9": {
+    "contact_mm2": 3252.0,
+    "planarity_mm": 6.52,
+    "si_overlap_mm": 51.1
+   },
+   "T9|T10": {
+    "contact_mm2": 3664.0,
+    "planarity_mm": 6.83,
+    "si_overlap_mm": 77.7
+   },
+   "T10|T11": {
+    "contact_mm2": 3136.0,
+    "planarity_mm": 9.39,
+    "si_overlap_mm": 485.8
+   },
+   "T11|T12": {
+    "contact_mm2": 3352.0,
+    "planarity_mm": 6.08,
+    "si_overlap_mm": 46.2
+   },
+   "T12|L1": {
+    "contact_mm2": 2092.0,
+    "planarity_mm": 6.1,
+    "si_overlap_mm": 39.9
+   },
+   "L1|L2": {
+    "contact_mm2": 4705.0,
+    "planarity_mm": 5.89,
+    "si_overlap_mm": 48.3
+   },
+   "L2|L3": {
+    "contact_mm2": 1234.0,
+    "planarity_mm": 7.8,
+    "si_overlap_mm": 69.3
+   },
+   "L3|L4": {
+    "contact_mm2": 854.0,
+    "planarity_mm": 3.94,
+    "si_overlap_mm": 179.9
+   },
+   "L4|L5": {
+    "contact_mm2": 520.0,
+    "planarity_mm": 3.15,
+    "si_overlap_mm": 16.8
+   }
+  },
+  "zooms": [
+   0.9140625,
+   0.9140625,
+   0.699999988079071
+  ]
+ },
+ "v7": {
+  "levels": {
+   "C1": {
+    "cm3": 16.1,
+    "logres": 0.063
+   },
+   "C2": {
+    "cm3": 18.4,
+    "logres": 0.376
+   },
+   "C3": {
+    "cm3": 12.5,
+    "logres": 0.203
+   },
+   "C4": {
+    "cm3": 12.6,
+    "logres": 0.184
+   },
+   "C5": {
+    "cm3": 14.5,
+    "logres": 0.023
+   },
+   "C6": {
+    "cm3": 15.9,
+    "logres": 0.028
+   },
+   "C7": {
+    "cm3": 16.5,
+    "logres": 0.147
+   },
+   "T1": {
+    "cm3": 23.8,
+    "logres": 0.202
+   },
+   "T2": {
+    "cm3": 22.9,
+    "logres": 0.024
+   },
+   "T3": {
+    "cm3": 23.2,
+    "logres": 0.047
+   },
+   "T4": {
+    "cm3": 24.8,
+    "logres": 0.034
+   },
+   "T5": {
+    "cm3": 28.5,
+    "logres": 0.012
+   },
+   "T6": {
+    "cm3": 31.9,
+    "logres": 0.076
+   },
+   "T7": {
+    "cm3": 43.2,
+    "logres": 0.196
+   },
+   "T8": {
+    "cm3": 41.6,
+    "logres": 0.005
+   },
+   "T9": {
+    "cm3": 39.6,
+    "logres": 0.185
+   },
+   "T10": {
+    "cm3": 52.4,
+    "logres": 0.111
+   },
+   "T11": {
+    "cm3": 57.9,
+    "logres": 0.095
+   },
+   "T12": {
+    "cm3": 52.9,
+    "logres": 0.141
+   },
+   "L1": {
+    "cm3": 64.0,
+    "logres": 0.0
+   },
+   "L2": {
+    "cm3": 74.4,
+    "logres": 0.11
+   },
+   "L3": {
+    "cm3": 70.8,
+    "logres": 0.06
+   },
+   "L4": {
+    "cm3": 69.4,
+    "logres": 0.02
+   },
+   "L5": {
+    "cm3": 62.5,
+    "logres": 0.115
+   }
+  },
+  "pairs": {
+   "C1|C2": {
+    "contact_mm2": 331.0,
+    "planarity_mm": 1.91,
+    "si_overlap_mm": 22.4
+   },
+   "C2|C3": {
+    "contact_mm2": 289.0,
+    "planarity_mm": 1.65,
+    "si_overlap_mm": 9.8
+   },
+   "C3|C4": {
+    "contact_mm2": 263.0,
+    "planarity_mm": 0.92,
+    "si_overlap_mm": 11.2
+   },
+   "C4|C5": {
+    "contact_mm2": 282.0,
+    "planarity_mm": 1.65,
+    "si_overlap_mm": 10.5
+   },
+   "C5|C6": {
+    "contact_mm2": 369.0,
+    "planarity_mm": 2.02,
+    "si_overlap_mm": 12.6
+   },
+   "C6|C7": {
+    "contact_mm2": 325.0,
+    "planarity_mm": 1.23,
+    "si_overlap_mm": 14.0
+   },
+   "C7|T1": {
+    "contact_mm2": 429.0,
+    "planarity_mm": 2.24,
+    "si_overlap_mm": 18.9
+   },
+   "T1|T2": {
+    "contact_mm2": 225.0,
+    "planarity_mm": 0.41,
+    "si_overlap_mm": 19.6
+   },
+   "T2|T3": {
+    "contact_mm2": 319.0,
+    "planarity_mm": 1.9,
+    "si_overlap_mm": 20.3
+   },
+   "T3|T4": {
+    "contact_mm2": 259.0,
+    "planarity_mm": 2.4,
+    "si_overlap_mm": 21.7
+   },
+   "T4|T5": {
+    "contact_mm2": 387.0,
+    "planarity_mm": 1.1,
+    "si_overlap_mm": 20.3
+   },
+   "T5|T6": {
+    "contact_mm2": 1001.0,
+    "planarity_mm": 4.52,
+    "si_overlap_mm": 29.4
+   },
+   "T6|T7": {
+    "contact_mm2": 210.0,
+    "planarity_mm": 1.42,
+    "si_overlap_mm": 25.2
+   },
+   "T7|T8": {
+    "contact_mm2": 822.0,
+    "planarity_mm": 0.87,
+    "si_overlap_mm": 9.8
+   },
+   "T8|T9": {
+    "contact_mm2": 345.0,
+    "planarity_mm": 0.73,
+    "si_overlap_mm": 16.8
+   },
+   "T9|T10": {
+    "contact_mm2": 1413.0,
+    "planarity_mm": 3.07,
+    "si_overlap_mm": 25.2
+   },
+   "T10|T11": {
+    "contact_mm2": 1078.0,
+    "planarity_mm": 3.5,
+    "si_overlap_mm": 16.8
+   },
+   "T11|T12": {
+    "contact_mm2": 633.0,
+    "planarity_mm": 2.12,
+    "si_overlap_mm": 11.2
+   },
+   "T12|L1": {
+    "contact_mm2": 597.0,
+    "planarity_mm": 1.76,
+    "si_overlap_mm": 15.4
+   },
+   "L1|L2": {
+    "contact_mm2": 856.0,
+    "planarity_mm": 2.29,
+    "si_overlap_mm": 14.7
+   },
+   "L2|L3": {
+    "contact_mm2": 1032.0,
+    "planarity_mm": 3.4,
+    "si_overlap_mm": 14.7
+   },
+   "L3|L4": {
+    "contact_mm2": 1542.0,
+    "planarity_mm": 4.23,
+    "si_overlap_mm": 21.0
+   },
+   "L4|L5": {
+    "contact_mm2": 854.0,
+    "planarity_mm": 2.97,
+    "si_overlap_mm": 15.4
+   }
+  },
+  "zooms": [
+   0.9140625,
+   0.9140625,
+   0.699999988079071
+  ]
+ }
+}

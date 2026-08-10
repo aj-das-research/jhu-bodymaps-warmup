@@ -1,0 +1,331 @@
+{
+ "zooms": [
+  0.9140625,
+  0.9140625,
+  0.699999988079071
+ ],
+ "posterior_sign": -1,
+ "levels": [
+  "L3",
+  "L2",
+  "L1",
+  "T12",
+  "T11",
+  "T10",
+  "T9",
+  "T8",
+  "T7"
+ ],
+ "bands_zidx": {
+  "L4": [
+   0.0,
+   21.0
+  ],
+  "L3": [
+   24.0,
+   68.0
+  ],
+  "L2": [
+   73.0,
+   121.0
+  ],
+  "L1": [
+   130.0,
+   170.0
+  ],
+  "T12": [
+   178.0,
+   213.0
+  ],
+  "T11": [
+   221.0,
+   254.0
+  ],
+  "T10": [
+   261.0,
+   292.0
+  ],
+  "T9": [
+   298.0,
+   327.0
+  ],
+  "T8": [
+   332.0,
+   364.0
+  ],
+  "T7": [
+   367.0,
+   404.0
+  ],
+  "T6": [
+   400.0,
+   427.0
+  ],
+  "T5": [
+   426.0,
+   428.0
+  ]
+ },
+ "v8": [
+  {
+   "level": "L3",
+   "corridor_cm3": 4.22,
+   "root_z_idx": 36.5,
+   "own_band_z": [
+    24.0,
+    68.0
+   ],
+   "root_band_owner": "L3",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 3
+  },
+  {
+   "level": "L2",
+   "corridor_cm3": 6.28,
+   "root_z_idx": 96.8,
+   "own_band_z": [
+    73.0,
+    121.0
+   ],
+   "root_band_owner": "L2",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 2,
+   "pieces_total": 3
+  },
+  {
+   "level": "L1",
+   "corridor_cm3": 6.85,
+   "root_z_idx": 155.1,
+   "own_band_z": [
+    130.0,
+    170.0
+   ],
+   "root_band_owner": "L1",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 2,
+   "pieces_total": 2
+  },
+  {
+   "level": "T12",
+   "corridor_cm3": 4.1,
+   "root_z_idx": 197.1,
+   "own_band_z": [
+    178.0,
+    213.0
+   ],
+   "root_band_owner": "T12",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T11",
+   "corridor_cm3": 6.54,
+   "root_z_idx": 239.8,
+   "own_band_z": [
+    221.0,
+    254.0
+   ],
+   "root_band_owner": "T11",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T10",
+   "corridor_cm3": 5.5,
+   "root_z_idx": 290.5,
+   "own_band_z": [
+    261.0,
+    292.0
+   ],
+   "root_band_owner": "T10",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T9",
+   "corridor_cm3": 0.82,
+   "root_z_idx": 319.9,
+   "own_band_z": [
+    298.0,
+    327.0
+   ],
+   "root_band_owner": "T9",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 2
+  },
+  {
+   "level": "T8",
+   "corridor_cm3": 4.42,
+   "root_z_idx": 347.1,
+   "own_band_z": [
+    332.0,
+    364.0
+   ],
+   "root_band_owner": "T8",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T7",
+   "corridor_cm3": 2.99,
+   "root_z_idx": 380.5,
+   "own_band_z": [
+    367.0,
+    404.0
+   ],
+   "root_band_owner": "T7",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  }
+ ],
+ "v8_upward_violation_cm3": {
+  "L3": 0.0,
+  "L2": 0.0,
+  "L1": 0.48,
+  "T12": 0.0,
+  "T11": 0.83,
+  "T10": 1.85,
+  "T9": 0.0,
+  "T8": 0.0,
+  "T7": 0.0,
+  "TOTAL": 3.16
+ },
+ "v9_candidate": [
+  {
+   "level": "L3",
+   "corridor_cm3": 4.22,
+   "root_z_idx": 36.5,
+   "own_band_z": [
+    24.0,
+    68.0
+   ],
+   "root_band_owner": "L3",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 3
+  },
+  {
+   "level": "L2",
+   "corridor_cm3": 4.84,
+   "root_z_idx": 96.4,
+   "own_band_z": [
+    73.0,
+    121.0
+   ],
+   "root_band_owner": "L2",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 2,
+   "pieces_total": 3
+  },
+  {
+   "level": "L1",
+   "corridor_cm3": 5.2,
+   "root_z_idx": 151.5,
+   "own_band_z": [
+    130.0,
+    170.0
+   ],
+   "root_band_owner": "L1",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 2,
+   "pieces_total": 2
+  },
+  {
+   "level": "T12",
+   "corridor_cm3": 5.02,
+   "root_z_idx": 188.7,
+   "own_band_z": [
+    178.0,
+    213.0
+   ],
+   "root_band_owner": "T12",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T11",
+   "corridor_cm3": 5.91,
+   "root_z_idx": 233.0,
+   "own_band_z": [
+    221.0,
+    254.0
+   ],
+   "root_band_owner": "T11",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T10",
+   "corridor_cm3": 4.88,
+   "root_z_idx": 275.5,
+   "own_band_z": [
+    261.0,
+    292.0
+   ],
+   "root_band_owner": "T10",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 5
+  },
+  {
+   "level": "T9",
+   "corridor_cm3": 4.23,
+   "root_z_idx": 313.1,
+   "own_band_z": [
+    298.0,
+    327.0
+   ],
+   "root_band_owner": "T9",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 2
+  },
+  {
+   "level": "T8",
+   "corridor_cm3": 4.42,
+   "root_z_idx": 347.1,
+   "own_band_z": [
+    332.0,
+    364.0
+   ],
+   "root_band_owner": "T8",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  },
+  {
+   "level": "T7",
+   "corridor_cm3": 2.99,
+   "root_z_idx": 380.5,
+   "own_band_z": [
+    367.0,
+    404.0
+   ],
+   "root_band_owner": "T7",
+   "verdict": "OK",
+   "blade_pieces_ge_0.25cm3": 1,
+   "pieces_total": 1
+  }
+ ],
+ "v9_candidate_upward_violation_cm3": {
+  "L3": 0.0,
+  "L2": 0.0,
+  "L1": 0.07,
+  "T12": 0.0,
+  "T11": 0.08,
+  "T10": 0.07,
+  "T9": 0.0,
+  "T8": 0.0,
+  "T7": 0.0,
+  "TOTAL": 0.22
+ }
+}

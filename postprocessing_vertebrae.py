@@ -39,14 +39,70 @@ Pipeline (all actions QA-logged per case):
            - cut surfaces tilt with the column: segment membership uses the
              first-order arc-length projection onto the centerline tangent,
              clipped to +/-6 mm so it stays monotone off-axis.
-           - arch phase: posterior elements are repartitioned by erosion
-             splitting - eroding the arch domain ~2.2 mm disconnects it at
-             the thin facet waists while laminae stay attached to their own
-             pedicle; each eroded component joins the level whose body it
-             touches, then the shell is reconstructed by uniform BFS.
+           - arch phase: posterior elements are rebuilt from PEDICLE ROOTS.
+             Every posterior element attaches to its own level through the
+             two pedicles - the only bone corridors crossing the body/arch
+             frontier - so per level the roots are the arch bone both
+             bone-geodesically and Euclidean-within ~3 mm of that level's
+             phase-1 body, and a waist-severed two-tier race regrows the
+             arch from these roots: identity is decided on the supra-neck
+             core (facet bridges are thinner than any true posterior
+             element, so severing sub-1.5 mm bone means no level can leak
+             across a joint), then the shell rejoins locally and opposing
+             fronts meet mid-bridge at the facet waists.
            - guards: C1/C2 skipped (no disc plane at the atlas/axis), band
              skipped when the expected disc count cannot be resolved, and
              the whole band reverts unless the audit strictly improves.
+  Stage 2c interface polish: for every adjacent pair whose interface is
+           guillotine-flat (planarity RMS below trigger - anatomy
+           interdigitates, so near-planar means geometric arbitration, not
+           joint anatomy), the boundary is re-solved ONLY inside a small
+           collar: seeds just outside the collar, HU-valley watershed so
+           the line settles across the darkest surface of the cleft (each
+           endplate stays with its own vertebra); accepted per pair only if
+           planarity strictly improves with bounded swap and no new
+           fragments, else reverted.
+  Stage 2d pool reclamation (runs LAST) - envelope rule: the raw prediction
+           is the outer boundary; real BONE inside it gets its class fixed,
+           it is never deleted. Every dropped raw-labeled bone component is
+           re-owned by the AXIAL-RING vote (in the axial projection a
+           vertebra is one closed ring; a true process fragment is
+           2D-bone-connected to its own ring in its own slices, while ribs
+           cross slices as disconnected islands), cross-checked by 3D
+           bone-geodesic linkage, then re-attached through a CT-bone
+           corridor. Fragments linked to no vertebra through bone stay out,
+           flagged (they are not vertebra by the label definition).
+  Stage 2e multiview waist-severed recoloring (after 2d): a plate-on-plate
+           contact (spinous blades at the interspinous space) is not a thin
+           waist in 3D, but in the 2D cross-section of the view containing
+           the structure's long axis it is a thin LINE. Each voxel is
+           judged in all three orthogonal views: eroded 2D bone cores are
+           identified by the level ANCHOR they contain (mass within ~28 mm
+           of a body through its own label - tips can never anchor their
+           captor), single-anchor components vote their level in-plane,
+           ambiguous components abstain as blockers, and only unanimous
+           cross-view votes recolor a voxel. Bounded per pair, loser must
+           not fragment, stage reverts if the audit degrades.
+  Stage 2f core-integrity surgery (after 2e): a mixed in-plane supra-neck
+           piece is the defect by definition (one rigid cross-section, two
+           labels): unify to majority when the internal boundary crosses
+           the piece's thick interior and the minority is small, else
+           relocate the boundary to the in-plane thickness valley. Gated on
+           the mixed-piece meter, audit, bounded per-level shifts.
+  Stage 2g imbrication repair (last relabeling stage): thoracolumbar
+           spinous blades IMBRICATE - root inside its own disc band, blade
+           drooping caudally past the next level - so every distance race
+           hands the drooping half one level down, and on DISH the ossified
+           interspinous sheet defeats every thickness signal too. The one
+           surviving invariant: NOTHING in the midline posterior corridor
+           grows toward the head. The corridor is re-derived in a single
+           top-to-bottom consecutive-slice sweep: band-consistent ring-strip
+           labels seed, the z+1 assignment flows down wherever bone
+           continues, a uniform 2D watershed extends in-plane - so a label
+           can only enter at its junction and flow caudally to the tip.
+           Gated on the upward-violation meter (label mass above its own
+           band top: anatomically impossible), mixed-piece meter, audit,
+           bounded per-level shifts.
   Stage 3  interface regularization (iterated 26-neighborhood majority vote
            on label-label interfaces), orphan-component absorption, enclosed-
            hole + directional pit filling, and bounded volume-preserving smoothing
@@ -64,7 +120,10 @@ Verified on the two AbdomenAtlasDemo cases (identical parameters):
   BDMAP_00000031 (sick):  21 fragmented, mass misassignment T8..L2 with
     L1 at 23.3 cm3 vs ~60 cm3 neighbors -> all clean; L1 restored to
     ~65 cm3 by re-arbitration at the detected disc planes; the ShapeKit
-    baseline instead deepens the error (L1 11.6 cm3, SIZE 0.20).
+    baseline instead deepens the error (L1 11.6 cm3, SIZE 0.20). The
+    imbricated spinous chain (raw painted every T7..L1 blade with mixed /
+    one-off labels) reads clean after stage 2g: upward-violation
+    3.15 -> 0.21 cm3, every blade root-band consistent.
 
 Dependencies: numpy, scipy, nibabel, scikit-image, cc3d (connected-components-3d).
 
@@ -115,7 +174,22 @@ P = {
     "max_body_height_mm": 45.0, "dp_beta": 2.0, "pin_lo_mm": 8.0, "pin_hi_mm": 35.0,
     # arbitration domain
     "seed_margin_mm": 3.0, "seed_radius_mm": 14.0, "halo_mm": 2.5, "band_pad_mm": 4.0,
-    "arch_erode_mm": 2.2,
+    "arch_root_mm": 3.0, "arch_neck_mm": 1.5, "arch_cost": "core",
+    "arch_overhang_mm": 16.0,
+    # imbrication repair (stage 2g)
+    "imb_half_mm": 14.0, "imb_strip_mm": 6.0, "imb_canal_mm": 12.0,
+    "imb_max_shift_cm3": 6.0,
+    # interface polish (stage 2c)
+    "polish_trigger_mm": 3.5, "polish_min_contact_mm2": 80.0, "polish_collar_mm": 6.0,
+    "polish_seed_shell_mm": 2.5, "polish_max_shift_frac": 0.15,
+    "polish_min_gain_mm": 0.3, "polish_priority": "hu",
+    # pool reclamation (stage 2d, runs last)
+    "reclaim_neck_mm": 10.0, "reclaim_link_mm": 10.0,
+    # multiview recoloring (stage 2e)
+    "mv_neck_mm": 1.2, "mv_anchor_mm": 40.0, "mv_max_shift_frac": 0.25,
+    "mv_elong": 2.5,
+    # skeleton-component relabeling (stage 2f)
+    "skel_cut_mm": 1.8,
     # smoothing
     "sigma_mm": 1.2, "max_dev_mm": 1.5, "vol_tol": 0.01, "min_dice": 0.97,
     "smooth_pad_mm": 5.0,
@@ -230,7 +304,8 @@ def stage1_triage(seg, ct, zooms, vox_mm3, records):
     return out
 
 
-def _bridge(seg, bone, main, comp, lid, zooms):
+def _bridge(seg, bone, main, comp, lid, zooms, neck_mm=None):
+    neck_mm = P["near_mm"] if neck_mm is None else neck_mm
     nz_c = ndimage.find_objects(comp.astype(np.uint8))[0]
     nz_m = ndimage.find_objects(main.astype(np.uint8))[0]
     joint = tuple(slice(min(a.start, b.start), max(a.stop, b.stop))
@@ -241,7 +316,7 @@ def _bridge(seg, bone, main, comp, lid, zooms):
     comp_j, main_j = comp[joint], main[joint]
     d_comp = ndimage.distance_transform_edt(~comp_j, sampling=zooms)
     d_main = ndimage.distance_transform_edt(~main_j, sampling=zooms)
-    neck = (d_comp <= P["near_mm"]) & (d_main <= P["near_mm"])
+    neck = (d_comp <= neck_mm) & (d_main <= neck_mm)
     domain = (bone_j & ((seg_j == 0) | (seg_j == lid)) & neck) | comp_j | main_j
     reach = ndimage.binary_propagation(main_j, mask=domain, structure=STRUCT26)
     if not (reach & comp_j).any():
@@ -435,6 +510,126 @@ def disc_minima(rho_s, z_lo, z_hi, n_cuts, zooms, pin_lo, pin_hi):
     return sorted(int(peaks[q]) + z_lo for q in set(picks))
 
 
+def arch_repartition(labels_ws, body_zone, A, band_ids, zooms, vox_mm3):
+    """Rebuild the posterior arch from PEDICLE ROOTS (pure function of the
+    phase-1 flood; bodies are never edited).
+
+    Anatomy: every posterior element (pedicles, laminae, spinous, transverse
+    and articular processes) attaches to its own vertebra exclusively through
+    the two pedicles - the only bone corridors crossing the body/arch
+    frontier - while adjacent levels touch posteriorly only at thin
+    facet-joint bridges. Two consequences drive the algorithm:
+
+      1. SEEDS: per level, the pedicle roots are the arch-domain bone that is
+         BONE-GEODESICALLY within arch_root_mm of that level's phase-1 body
+         (masked dilation through own body + arch only, so Euclidean
+         proximity across the foramen or a collapsed disc cannot mint a
+         root) AND Euclidean-within the same radius (so voxel-step overshoot
+         on anisotropic grids cannot either). Voxels reached by two bodies
+         are contested and stay unseeded.
+      2. COMPETITION (arch_cost="core"): a waist-severed two-tier race.
+         Tier 1 decides IDENTITY on the supra-neck core (arch voxels with
+         local thickness >= arch_neck_mm, plus the roots): facet bridges are
+         thinner than any true posterior element, so severing them makes
+         each level's core reachable only from its own pedicle roots and the
+         identity race cannot leak across a joint. Tier 2 rejoins the shell
+         (sub-neck voxels, including the bridges themselves) by a local
+         uniform BFS from the tier-1 labels, so opposing shells meet
+         mid-bridge. Phantom-measured ablations: "edt" (-EDT priority) has
+         no post-neck resistance and splits hanging processes by depth
+         order; "uniform" lets a root near a joint out-run a far pedicle.
+    """
+    body_lab = np.where(body_zone, labels_ws, 0).astype(np.int32)
+    roots = np.zeros(A.shape, dtype=np.int32)
+    contested = np.zeros(A.shape, dtype=bool)
+    pad_vox = np.ceil((P["arch_root_mm"] + 2.0) / np.asarray(zooms)).astype(int) + 1
+    root_it = max(int(np.ceil(P["arch_root_mm"] / min(zooms))), 1)
+    rootless = []
+    for lid in band_ids:
+        body = body_lab == lid
+        if not body.any():
+            rootless.append(ID_TO_NAME[lid])
+            continue
+        sl = _bbox_pad(ndimage.find_objects(body.astype(np.uint8))[0],
+                       pad_vox, A.shape)
+        reach = ndimage.binary_dilation(body[sl], structure=STRUCT6,
+                                        iterations=root_it,
+                                        mask=A[sl] | body[sl])
+        d_eu = ndimage.distance_transform_edt(~body[sl], sampling=zooms)
+        r = reach & A[sl] & (d_eu <= P["arch_root_mm"] + max(zooms))
+        if not r.any():
+            rootless.append(ID_TO_NAME[lid])
+            continue
+        sub = roots[sl]
+        contested[sl] |= (sub > 0) & (sub != lid) & r
+        sub[r & (sub == 0)] = lid
+    roots[contested] = 0
+    rec = {"arch_mode": f"pedicle_roots_{P['arch_cost']}",
+           "arch_roots_cm3": {ID_TO_NAME[l]: round(float((roots == l).sum())
+                                                   * vox_mm3 / 1000.0, 2)
+                              for l in band_ids if (roots == l).any()},
+           "arch_contested_mm3": round(float(contested.sum()) * vox_mm3, 1)}
+    if rootless:
+        rec["arch_rootless"] = rootless
+    if not (roots > 0).any():
+        rec["arch_skipped"] = "no pedicle roots found"
+        return labels_ws, rec
+    if P["arch_cost"] == "hier":
+        # MULTI-SCALE PEEL RACE (ablation - MEASURED WORSE on-case, kept for
+        # the record). Idea: no single neck scale exists on DISH (facet
+        # necks 1-2 mm, fusions 2-5 mm, blades 4-8 mm), so claim thick bone
+        # first and let fronts cross thinner bone only later; thickness
+        # measured in-plane per parasagittal slice. MEASURED OUTCOME
+        # (BDMAP_00000031, T5..L2 band): upward-violation 0.33 -> 7.68 cm3
+        # vs 3.16 for "core" - REVERTED by the imbrication gate. WHY IT
+        # FAILS: the ossified interspinous bridge is a MIDLINE SAGITTAL
+        # SHEET, continuous with both blades; its sagittal in-plane
+        # cross-section is a broad blob, so in-plane thickness is LARGE at
+        # exactly the bridge to be severed - the peel welds blade to blade
+        # (and 3D EDT agrees). No geometric thickness signal separates a
+        # blade from a fusion sheet in its own plane; identity there must
+        # come from CAUDAL MONOTONICITY instead (stage 2g).
+        bb = _bbox_pad(ndimage.find_objects(A.astype(np.uint8))[0],
+                       np.array([2, 2, 2]), A.shape)
+        Ab = A[bb]
+        solid = Ab | body_zone[bb]      # anatomical thickness, not domain-cut
+        t2 = np.zeros(Ab.shape, dtype=np.float32)
+        zo2 = (zooms[1], zooms[2])
+        for x in range(Ab.shape[0]):
+            sl2 = solid[x]
+            if sl2.any():
+                t2[x] = ndimage.distance_transform_edt(sl2, sampling=zo2)
+        lab = roots[bb].astype(np.int32)
+        tmax = float(t2[Ab].max()) if Ab.any() else 0.0
+        tiers = [t for t in (8.0, 6.0, 5.0, 4.0, 3.5, 3.0, 2.5, 2.0, 1.6,
+                             1.2, 0.8, 0.4) if t < tmax] + [0.0]
+        for t in tiers:
+            mask_t = (Ab & (t2 >= t)) | (lab > 0)
+            lab = watershed(np.zeros(Ab.shape, dtype=np.uint8), markers=lab,
+                            mask=mask_t)
+        labels_arch = np.zeros(A.shape, dtype=np.int32)
+        labels_arch[bb] = lab
+    elif P["arch_cost"] == "core":
+        edtA = ndimage.distance_transform_edt(A, sampling=zooms).astype(np.float32)
+        core = A & ((edtA >= P["arch_neck_mm"]) | (roots > 0))
+        lab1 = watershed(np.zeros(A.shape, dtype=np.uint8), markers=roots,
+                         mask=core)
+        labels_arch = watershed(np.zeros(A.shape, dtype=np.uint8), markers=lab1,
+                                mask=A)
+    elif P["arch_cost"] == "edt":
+        edtA = ndimage.distance_transform_edt(A, sampling=zooms).astype(np.float32)
+        labels_arch = watershed(-edtA, markers=roots, mask=A)
+    else:
+        labels_arch = watershed(np.zeros(A.shape, dtype=np.uint8),
+                                markers=roots, mask=A)
+    sel = labels_arch > 0
+    changed = int((sel & (labels_arch != labels_ws)).sum())
+    out = np.where(sel, labels_arch.astype(labels_ws.dtype), labels_ws)
+    rec["arch_phase2_changed_mm3"] = round(changed * vox_mm3, 1)
+    rec["arch_unrooted_mm3"] = round(float((A & ~sel).sum()) * vox_mm3, 1)
+    return out, rec
+
+
 def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms,
                    vox_mm3, qa):
     """Re-arbitrate one contiguous suspect band (v2 geometry).
@@ -551,50 +746,37 @@ def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms,
     halo_it = int(max(np.round(P["halo_mm"] / np.asarray(zooms))))
     grown = ndimage.binary_dilation(band_s | pool_s, structure=st, iterations=max(halo_it, 1))
     halo = grown & (seg_s == 0) & bone_s & ~pool_s
-    D = (band_s | pool_s | halo) & (s_f >= s_lo_all) & (s_f <= s_hi_all)
+    # bodies are gated strictly at the outer disc cuts, but the ARCH domain
+    # may OVERHANG them: superior/inferior articular processes and steep
+    # thoracic spinous processes legitimately interdigitate 8-15 mm past the
+    # disc plane, and hard s-gating them amputated real bone (measured as
+    # cleared_out_of_band). The pedicle-root race decides who owns the
+    # overhang; frozen neighbors' voxels are never in the domain either way.
+    rb2 = (P["seed_radius_mm"] + 4.0) ** 2
+    body_zone = d2_slab <= rb2
+    in_s = (s_f >= s_lo_all) & (s_f <= s_hi_all)
+    in_s_arch = ((s_f >= s_lo_all - P["arch_overhang_mm"])
+                 & (s_f <= s_hi_all + P["arch_overhang_mm"]))
+    D = (band_s | pool_s | halo) & np.where(body_zone, in_s, in_s_arch)
     markers[~D] = 0
     # uniform-speed geodesic competition: distance is the cost. (A depth
     # priority was tried and convicted: laminae form one connected deep river,
     # so the first label entering ran the whole posterior column.)
     labels_ws = watershed(np.zeros(D.shape, dtype=np.uint8), markers=markers, mask=D)
 
-    # ---- phase 2: arch repartition by erosion-splitting ------------------
+    # ---- phase 2: arch rebuild from pedicle roots ------------------------
     # The flood race misassigns posterior elements (spinous/laminae) because
-    # facet joints are bone-continuous. Geometry fix: in the arch domain,
-    # erode by ~2 mm - thin facet waists disconnect, laminae/spinous stay
-    # connected to their own pedicle - then attach each eroded component to
-    # the level whose phase-1 BODY it touches and reconstruct by uniform BFS.
-    rb2 = (P["seed_radius_mm"] + 4.0) ** 2
-    body_zone = d2_slab <= rb2
+    # facet joints are bone-continuous. Anatomy fix: regrow the arch from
+    # each level's PEDICLE ROOTS - the only bone corridors crossing the
+    # body/arch frontier - with a waist-severed identity race that cannot
+    # leak across thin facet necks (see arch_repartition).
     A = D & ~body_zone
     if A.any():
-        edtA = ndimage.distance_transform_edt(A, sampling=zooms).astype(np.float32)
-        core_arch = A & (edtA >= P["arch_erode_mm"])
-        cc_arch = cc3d.connected_components(core_arch.astype(np.uint8), connectivity=26)
-        n_reassigned = 0
-        markers2 = np.where(D & body_zone, labels_ws, 0).astype(np.int32)
-        st1 = ndimage.generate_binary_structure(3, 1)
-        dil_it = int(np.ceil((P["arch_erode_mm"] + 1.0) / min(zooms)))
-        for comp_id in range(1, int(cc_arch.max()) + 1):
-            comp = cc_arch == comp_id
-            n_comp = int(comp.sum())
-            if n_comp < 20:
-                continue
-            ring = ndimage.binary_dilation(comp, structure=st1, iterations=dil_it) & body_zone & D
-            votes = labels_ws[ring]
-            votes = votes[votes > 0]
-            if votes.size < 10:
-                continue
-            ids, cnt = np.unique(votes, return_counts=True)
-            if cnt.max() / votes.size >= 0.7:
-                lid = int(ids[cnt.argmax()])
-                markers2[comp] = lid
-                n_reassigned += n_comp
-        labels_arch = watershed(np.zeros(D.shape, dtype=np.uint8), markers=markers2, mask=D)
-        changed = int(((labels_arch != labels_ws) & (labels_arch > 0)).sum())
-        keep = labels_arch > 0
-        labels_ws = np.where(keep, labels_arch, labels_ws)
-        rec["arch_phase2_changed_mm3"] = round(changed * vox_mm3, 1)
+        labels_ws, arch_rec = arch_repartition(labels_ws, body_zone & D, A,
+                                               list(assign), zooms, vox_mm3)
+        rec.update(arch_rec)
+        for nm in arch_rec.get("arch_rootless", []):
+            qa["flags"].append(f"ARCH_NO_ROOT_{nm}")
 
     out = seg.copy()
     out[band_mask] = 0  # includes out-of-band overreach, which is cleared
@@ -602,9 +784,285 @@ def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms,
     sel = labels_ws > 0
     out_s[sel] = labels_ws[sel].astype(seg.dtype)
     rec["unreached_pool_mm3"] = round(float((D & ~sel & (seg_s == 0)).sum()) * vox_mm3, 1)
-    rec["cleared_out_of_band_mm3"] = round(float((band_mask & (out == 0)).sum()) * vox_mm3, 1)
+    cleared = band_mask & (out == 0)
+    rec["cleared_out_of_band_mm3"] = round(float(cleared.sum()) * vox_mm3, 1)
+    rec["cleared_arch_mm3"] = round(float((cleared[:, :, slab] & ~body_zone).sum())
+                                    * vox_mm3, 1)
     return out
 
+
+
+def _spinous_frame(seg, ct, zooms):
+    """Shared geometry for the spinous meter and repair (stage 2g): column
+    centerline, posterior side sign, per-z corridor front = body posterior
+    edge + canal depth (DISH cannot fuse the body edge away), and per-level
+    body z-bands from the 18 mm centerline cylinder - bodies are
+    disc-cut-validated, the trusted identity source."""
+    cx, cy = _centerline_xy(seg)
+    if cx is None:
+        return None
+    nz = seg.shape[2]
+    rb = 18.0
+    counts = np.zeros((nz, 25), dtype=np.int64)
+    y_lo = np.full(nz, np.nan)
+    y_hi = np.full(nz, np.nan)
+    d_all = np.full(nz, np.nan)
+    d_bod = np.full(nz, np.nan)
+    for z in range(nz):
+        i, j = np.nonzero(seg[:, :, z] > 0)
+        if i.size < 20:
+            continue
+        d2 = (((i - cx[z]) * zooms[0]) ** 2 + ((j - cy[z]) * zooms[1]) ** 2)
+        sel = d2 <= rb * rb
+        if sel.sum() < 20:
+            continue
+        labs = seg[i[sel], j[sel], z]
+        counts[z] = np.bincount(labs, minlength=25)
+        y_lo[z], y_hi[z] = np.percentile(j[sel], 5), np.percentile(j[sel], 95)
+        d_all[z], d_bod[z] = j.mean(), j[sel].mean()
+    ok = ~np.isnan(y_lo)
+    if ok.sum() < 5:
+        return None
+    psign = 1 if np.nanmean(d_all - d_bod) >= 0 else -1
+    idx = np.arange(nz)
+    yB = np.interp(idx, idx[ok], (y_hi if psign > 0 else y_lo)[ok])
+    yB = ndimage.median_filter(yB, 11)
+    off = P["imb_canal_mm"] / zooms[1]
+    y0 = np.round(yB + off if psign > 0 else yB - off).astype(int)
+    bands = {}
+    for lid in range(1, 25):
+        c = counts[:, lid].astype(np.float64)
+        if c.sum() < 100:
+            continue
+        cw = np.cumsum(c) / c.sum()
+        bands[lid] = (int(np.searchsorted(cw, 0.04)),
+                      int(np.searchsorted(cw, 0.96)))
+    return {"cx": cx, "cy": cy, "psign": psign, "y0": y0, "bands": bands}
+
+
+def _imbrication_cm3(seg, ct, zooms, vox_mm3, lids=None, tol_mm=5.0,
+                     frame=None):
+    """Spinous UPWARD-VIOLATION meter (one-sided tripwire for the
+    imbrication error class). In the MIDLINE posterior corridor (|x-cx| <=
+    7 mm, posterior of body edge + canal) the only structures are spinous
+    blades and interspinous bone, and blades angle strictly CAUDALLY: a
+    blade droops BELOW its vertebra, never reaches above it. Corridor volume
+    carrying a label whose own body band lies below (z > band_top + tol) is
+    therefore anatomically impossible - it is a blade wearing the label of
+    the level below (measured failure mode: the T9..L2 one-down chain).
+    The drooped part of a stolen blade z-overlaps the thief's own band and
+    is invisible to any z-test - ONLY root-attachment can decide it - so
+    this meter is a tripwire, not a complete count.
+    Returns (total_cm3, per_level_dict). Pass frame= to reuse (and to
+    measure before/after with IDENTICAL geometry)."""
+    fr = frame if frame is not None else _spinous_frame(seg, ct, zooms)
+    if fr is None:
+        return 0.0, {}
+    if lids is None:
+        lids = [int(v) for v in np.unique(seg) if v != 0]
+    bone = ct >= P["bone_hu"]
+    cx, psign, y0 = fr["cx"], fr["psign"], fr["y0"]
+    ztop = {l: fr["bands"][l][1] for l in lids if l in fr["bands"]}
+    tol = int(round(tol_mm / zooms[2]))
+    hw = max(int(round(7.0 / zooms[0])), 2)
+    upv = {lid: 0 for lid in ztop}
+    for z in range(seg.shape[2]):
+        active = [l for l, zt in ztop.items() if z > zt + tol]
+        if not active:
+            continue
+        xc = int(round(cx[z]))
+        xs = slice(max(xc - hw, 0), xc + hw + 1)
+        ys = (slice(y0[z], None) if psign > 0
+              else slice(0, max(y0[z] + 1, 0)))
+        s2 = seg[xs, ys, z]
+        b2 = bone[xs, ys, z]
+        v = s2[(s2 > 0) & b2]
+        if not v.size:
+            continue
+        bc = np.bincount(v, minlength=25)
+        for l in active:
+            upv[l] += int(bc[l])
+    per = {ID_TO_NAME[l]: round(n * vox_mm3 / 1e3, 2)
+           for l, n in upv.items() if n * vox_mm3 > 20.0}
+    total = round(float(sum(n for n in upv.values())) * vox_mm3 / 1e3, 2)
+    return total, per
+
+
+def stage2g_imbrication(seg, ct, affine, zooms, vox_mm3, qa):
+    """CAUDAL-FLOW spinous repair: blade identity = ROOT ATTACHMENT,
+    propagated strictly downward through consecutive slices.
+
+    THE DEFECT CLASS (measured in the v8 full-resolution review):
+    thoracolumbar spinous blades IMBRICATE - the root joins the ring inside
+    its own disc band and the blade droops caudally past the next level, so
+    the tip lies Euclidean-nearest the vertebra BELOW. Every distance race
+    therefore hands the drooping half one level down (the T9..L2 one-down
+    chain), and on DISH no thickness signal can veto it: the ossified
+    interspinous bridge is a midline sagittal SHEET, bone-continuous with
+    both blades and broad in its own cross-section (the "hier" multi-scale
+    peel ablation measured upward-violation 0.33 -> 7.68 cm3 - worse than
+    the race it tried to fix). One invariant survives all of it: NOTHING in
+    the midline posterior corridor grows toward the head.
+
+    Mechanism: the corridor's anterior STRIP (imb_strip_mm at the ring,
+    where the junctions live) keeps its labels - junction identity is
+    race-derived from pedicle roots and audit-verified. The corridor mass
+    posterior of the strip is re-derived in ONE top-to-bottom sweep over
+    consecutive axial slices: markers at slice z = strip labels at z, plus
+    the z+1 assignment wherever its (x,y) footprint continues into bone at
+    z, extended in-plane by a uniform 2D watershed. A label can only ENTER
+    the corridor at its junction and FLOW DOWN, so a lower level can never
+    claim bone above its own band, while a drooping blade carries its
+    root's label to the tip; descending fronts of consecutive levels meet
+    inside the interspinous sheet. (This is the consecutive-slice
+    "temporal outline propagation" idea, made safe by the anatomical
+    direction constraint - undirected chaining was tried and reverted, see
+    stage 2f docstring.)
+
+    Recolor-only: the raw envelope is preserved, unreached labeled voxels
+    keep their labels, nothing is deleted. Gates: upward-violation must
+    improve (or stay ~0 with negligible churn), the mixed-piece meter must
+    not increase, the audit must not degrade, per-level net shift <=
+    imb_max_shift_cm3 - else full revert."""
+    fr = _spinous_frame(seg, ct, zooms)
+    if fr is None:
+        qa["imbrication"] = {"skipped": "no frame"}
+        return seg
+    cx, psign, y0 = fr["cx"], fr["psign"], fr["y0"]
+    bone = ct >= P["bone_hu"]
+    u0, up0 = _imbrication_cm3(seg, ct, zooms, vox_mm3, frame=fr)
+    hw = max(int(round(P["imb_half_mm"] / zooms[0])), 2)
+    sw = int(round(P["imb_strip_mm"] / zooms[1]))
+    zs = np.nonzero(seg.any(axis=(0, 1)))[0]
+    if zs.size == 0:
+        qa["imbrication"] = {"skipped": "empty"}
+        return seg
+    # the slab must FOLLOW THE BLADES, not the body centroid: vertebral
+    # rotation (scoliosis) swings the spinous line laterally, and a slab
+    # centered on the body clips the blade - the clipped part keeps its
+    # stolen label and a fresh mixed piece is minted at the slab edge
+    # (measured: badcut 35 -> 36, upv only halved, on the body-centered
+    # first attempt)
+    nz_ = seg.shape[2]
+    bx = np.full(nz_, np.nan)
+    wide = max(int(round(25.0 / zooms[0])), 3)
+    for z in range(int(zs[0]), int(zs[-1]) + 1):
+        xc = int(round(cx[z]))
+        xs = slice(max(xc - wide, 0), xc + wide + 1)
+        ys = (slice(y0[z], seg.shape[1]) if psign > 0
+              else slice(0, max(y0[z] + 1, 0)))
+        bb = bone[xs, ys, z] & (seg[xs, ys, z] > 0)
+        if bb.sum() >= 10:
+            bx[z] = xs.start + np.nonzero(bb)[0].mean()
+    okb = ~np.isnan(bx)
+    if okb.sum() >= 5:
+        idxz = np.arange(nz_)
+        bx = np.interp(idxz, idxz[okb], bx[okb])
+        bx = ndimage.gaussian_filter1d(bx, 4.0)
+    else:
+        bx = cx
+    out = seg.copy()
+    prev = None
+    unreached = 0
+    for z in range(int(zs[-1]), int(zs[0]) - 1, -1):
+        xc = int(round(bx[z]))
+        xs = slice(max(xc - hw, 0), xc + hw + 1)
+        if psign > 0:
+            cys = slice(min(y0[z], seg.shape[1]), seg.shape[1])
+            sys_ = slice(min(y0[z], seg.shape[1]),
+                         min(y0[z] + sw, seg.shape[1]))
+        else:
+            cys = slice(0, max(y0[z] + 1, 0))
+            sys_ = slice(max(y0[z] + 1 - sw, 0), max(y0[z] + 1, 0))
+        c2 = np.zeros(seg.shape[:2], dtype=bool)
+        c2[xs, cys] = bone[xs, cys, z]
+        s2m = np.zeros(seg.shape[:2], dtype=bool)
+        s2m[xs, sys_] = bone[xs, sys_, z]
+        lab2 = out[:, :, z]
+        m2 = c2 & (lab2 > 0)
+        if not m2.any():
+            prev = None
+            continue
+        # a strip voxel SEEDS the flow only when its label is BAND-
+        # CONSISTENT (junctions live at their own band by definition);
+        # a mislabeled strip patch - the near-root end of a stolen blade -
+        # is flow territory and gets re-derived like the rest (keeping it
+        # left residual violations in the root belt and minted a mixed
+        # piece per blade: badcut 35 -> 36 on the first attempt)
+        seed2 = s2m & m2
+        if seed2.any():
+            ii, jj = np.nonzero(seed2)
+            lv = lab2[ii, jj].astype(int)
+            zb = np.array([fr["bands"].get(l, (z, z))[0] for l in lv])
+            zt = np.array([fr["bands"].get(l, (z, z))[1] for l in lv])
+            tol2 = int(round(6.0 / zooms[2]))
+            bad_ = (z < zb - tol2) | (z > zt + tol2)
+            seed2[ii[bad_], jj[bad_]] = False
+        grow2 = m2 & ~seed2
+        mk = np.where(seed2, lab2, 0).astype(np.int32)
+        if prev is not None:
+            take = (mk == 0) & m2 & (prev > 0)
+            mk[take] = prev[take]
+        if (mk > 0).any():
+            ws = watershed(np.zeros(mk.shape, dtype=np.uint8), markers=mk,
+                           mask=m2)
+        else:
+            ws = mk
+        new2 = np.where(grow2 & (ws > 0), ws.astype(lab2.dtype), lab2)
+        unreached += int((grow2 & (ws == 0)).sum())
+        out[:, :, z] = new2
+        prev = np.where(m2, new2, 0)
+    # CONVERGENCE (same treatment as stage 2f): per-slice reassignment
+    # leaves ragged seams and strands old-label slivers at the slab and
+    # strip boundaries - unconverged, five levels fragmented into dozens
+    # of components (measured: T10 -> 44). Volume-preserving interface
+    # majority vote, then fuse detached slivers into their surrounding
+    # label (nothing deleted), inside the changed-region bbox.
+    diff = out != seg
+    if diff.any():
+        padv = np.ceil(10.0 / np.asarray(zooms)).astype(int)
+        bb = _bbox_pad(ndimage.find_objects(diff.astype(np.uint8))[0],
+                       padv, seg.shape)
+        sub = majority_filter(out[bb].copy(), iters=1)
+        sub = absorb_orphans(sub, vox_mm3, max_mm3=1500.0, delete_below=0.0)
+        keep = out[bb] > 0
+        out[bb] = np.where(keep, np.where(sub > 0, sub, out[bb]), 0)
+    u1, up1 = _imbrication_cm3(out, ct, zooms, vox_mm3, frame=fr)
+    cx_med = int(round(np.median(cx)))
+    mix_before = _badcut_pieces(seg, bone, zooms, cx_med)
+    mix_after = _badcut_pieces(out, bone, zooms, cx_med)
+    changed = int((out != seg).sum())
+    deltas = {}
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        d = (int((out == lid).sum()) - int((seg == lid).sum())) * vox_mm3 / 1e3
+        if abs(d) > 0.05:
+            deltas[ID_TO_NAME[lid]] = round(d, 2)
+    _, s_before = audit(seg, affine, vox_mm3)
+    _, s_after = audit(out, affine, vox_mm3)
+    bad = lambda s: (s["n_fragmented"] + s["n_empty"] + s["n_size"]
+                     + s["n_order"])
+    rec = {"changed_cm3": round(changed * vox_mm3 / 1e3, 2),
+           "unreached_mm3": round(unreached * vox_mm3, 1),
+           "upv_cm3_before": u0, "upv_cm3_after": u1,
+           "upv_per_level_before": up0, "upv_per_level_after": up1,
+           "badcut_pieces_before": mix_before,
+           "badcut_pieces_after": mix_after,
+           "volume_deltas_cm3": deltas}
+    qa["imbrication"] = rec
+    over = [n for n, d in deltas.items()
+            if abs(d) > P["imb_max_shift_cm3"]]
+    ok_meter = (u1 < u0 - 0.2) or (u0 <= 0.2 and u1 <= u0 + 0.05
+                                   and changed * vox_mm3 / 1e3 <= 2.0)
+    rec["gate"] = {"ok_meter": bool(ok_meter),
+                   "audit_bad_before_after": [bad(s_before), bad(s_after)]}
+    if (not ok_meter or mix_after > mix_before
+            or bad(s_after) > bad(s_before) or over):
+        rec["reverted_all"] = True
+        if over:
+            rec["over_shift"] = over
+        qa["flags"].append("IMBRICATION_REVERTED_ALL")
+        return seg
+    return out
 
 
 def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
@@ -635,17 +1093,712 @@ def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
         i0, i1 = present.index(band[0]), present.index(band[-1])
         above = present[i0 - 1] if i0 > 0 else None
         below = present[i1 + 1] if i1 + 1 < len(present) else None
+        band_lids = [NAME_TO_ID[n] for n in band]
+        u0, _ = _imbrication_cm3(out, ct, zooms, vox_mm3, band_lids)
         cand = arbitrate_band(out, raw, ct, band, (below, above), cxs, cys, rho_s,
                               zooms, vox_mm3, qa)
         if cand is None:
             continue
         b0, b1 = badness(out, set(band)), badness(cand, set(band))
+        u1, _ = _imbrication_cm3(cand, ct, zooms, vox_mm3, band_lids)
         qa["bands"][-1]["badness_before_after"] = [b0, b1]
+        qa["bands"][-1]["imbrication_upv_cm3_before_after"] = [u0, u1]
         if b1 >= b0:
             qa["flags"].append(f"REVERTED band={band}: badness {b0}->{b1}")
         else:
+            # imbrication UPV is recorded but NOT gated here: the band edit
+            # owns body identity (its win), while blade imbrication is owned
+            # and repaired downstream by stage 2g - vetoing the whole band
+            # for a 2-3 cm3 blade steal would throw away 40+ cm3 of body
+            # fixes (measured: this exact veto reverted the T5..L2 band).
             out = cand
     return out
+
+
+# --------------------------------------------------------------- stage 2c --
+def _adjacent_interfaces(seg):
+    """One sweep over 3 axes -> {(a,b): Nx3 voxel points}, a<b."""
+    out = {}
+    for ax in range(3):
+        s_hi = [slice(None)] * 3
+        s_lo = [slice(None)] * 3
+        s_hi[ax] = slice(1, None)
+        s_lo[ax] = slice(None, -1)
+        x, y = seg[tuple(s_hi)], seg[tuple(s_lo)]
+        m = (x > 0) & (y > 0) & (x != y)
+        if not m.any():
+            continue
+        i = np.nonzero(m)
+        a = np.minimum(x[m], y[m]).astype(np.int32)
+        b = np.maximum(x[m], y[m]).astype(np.int32)
+        pts = np.c_[i[0], i[1], i[2]]
+        pts[:, ax] += 1
+        key = a.astype(np.int64) * 100 + b
+        for k in np.unique(key):
+            sel = key == k
+            out.setdefault((int(k) // 100, int(k) % 100), []).append(pts[sel])
+    return {k: np.vstack(v) for k, v in out.items()}
+
+
+def _planarity_mm(pts, zooms):
+    if pts is None or len(pts) < 50:
+        return None
+    Q = pts * np.asarray(zooms)
+    Q = Q - Q.mean(0)
+    _, _, Vt = np.linalg.svd(Q, full_matrices=False)
+    return float(np.sqrt(((Q @ Vt[2]) ** 2).mean()))
+
+
+def _pair_pts(seg, a, b):
+    pts = []
+    for ax in range(3):
+        s_hi = [slice(None)] * 3
+        s_lo = [slice(None)] * 3
+        s_hi[ax] = slice(1, None)
+        s_lo[ax] = slice(None, -1)
+        x, y = seg[tuple(s_hi)], seg[tuple(s_lo)]
+        m = ((x == a) & (y == b)) | ((x == b) & (y == a))
+        if m.any():
+            i = np.nonzero(m)
+            pp = np.c_[i[0], i[1], i[2]]
+            pp[:, ax] += 1
+            pts.append(pp)
+    return np.vstack(pts) if pts else None
+
+
+def stage2c_interface_polish(seg, ct, zooms, vox_mm3, qa):
+    """Evidence-local re-arbitration of guillotine-flat adjacent interfaces
+    (v3-plan P1b). Anatomy interdigitates, so a near-planar label interface
+    is a fingerprint of geometric arbitration, not of the joint. For every
+    adjacent pair whose interface planarity RMS is below the trigger:
+    re-solve ONLY a small collar around the interface - domain is the two
+    labels inside the collar, seeds are their voxels just outside, priority
+    is the (negative) smoothed HU so the boundary settles across the darkest
+    surface of the cleft (cortical endplate - disc - endplate reads
+    bright-dark-bright, and the valley belongs to neither side). Each pair
+    is accepted only if planarity strictly improves, the swap stays bounded,
+    and neither label fragments; otherwise it reverts. Flags never edit."""
+    out = seg.copy()
+    pairs = _adjacent_interfaces(out)
+    adj = {tuple(sorted((NAME_TO_ID[TOP_DOWN[k]], NAME_TO_ID[TOP_DOWN[k + 1]])))
+           for k in range(len(TOP_DOWN) - 1)}
+    for (a, b) in sorted(pairs):
+        if (a, b) not in adj:
+            continue
+        pts = pairs[(a, b)]
+        p0 = _planarity_mm(pts, zooms)
+        area = len(pts) * (vox_mm3 ** (2 / 3))
+        rec = {"pair": f"{ID_TO_NAME[b]}|{ID_TO_NAME[a]}",
+               "contact_mm2": round(area, 0),
+               "planarity_before": None if p0 is None else round(p0, 2)}
+        qa["polish"].append(rec)
+        if (p0 is None or area < P["polish_min_contact_mm2"]
+                or p0 >= P["polish_trigger_mm"]):
+            rec["action"] = "skip"
+            continue
+        lo = np.maximum(pts.min(0) - 2, 0)
+        hi = np.minimum(pts.max(0) + 3, np.asarray(out.shape))
+        pad = np.ceil((P["polish_collar_mm"] + P["polish_seed_shell_mm"] + 2)
+                      / np.asarray(zooms)).astype(int)
+        sl = tuple(slice(max(int(l - p), 0), min(int(h + p), n))
+                   for l, h, p, n in zip(lo, hi, pad, out.shape))
+        sub = out[sl]
+        iface = np.zeros(sub.shape, dtype=bool)
+        iface[tuple((pts - [s.start for s in sl]).T)] = True
+        d_if = ndimage.distance_transform_edt(~iface, sampling=zooms)
+        collar = d_if <= P["polish_collar_mm"]
+        shell = (d_if > P["polish_collar_mm"]) & \
+                (d_if <= P["polish_collar_mm"] + P["polish_seed_shell_mm"])
+        ab = (sub == a) | (sub == b)
+        R = collar & ab
+        seeds = np.where(shell & ab, sub, 0).astype(np.int32)
+        if not (seeds == a).any() or not (seeds == b).any() or not R.any():
+            rec["action"] = "skip_no_seeds"
+            continue
+        if P["polish_priority"] == "hu":
+            # boundary settles across the darkest surface of the cleft
+            # (joint space / disc): fronts traverse bone freely, the HU
+            # valley is claimed last, and each endplate stays with its own
+            # vertebra. (|grad HU| puts the line on an endplate ridge
+            # instead, which annexes thick discs to one side.)
+            prio = -ndimage.gaussian_filter(
+                np.clip(ct[sl].astype(np.float32), -200, 1500),
+                sigma=[0.8 / z for z in zooms])
+        else:
+            prio = ndimage.gaussian_gradient_magnitude(
+                ct[sl].astype(np.float32), sigma=[1.0 / z for z in zooms])
+        ws = watershed(prio, markers=seeds, mask=R | (seeds > 0))
+        cand = sub.copy()
+        m_new = R & (ws > 0)
+        cand[m_new] = ws[m_new].astype(cand.dtype)
+        if _polish_gate(rec, sub, cand, a, b, zooms, "ws", p0):
+            out[sl] = cand
+        # (A random-walker fallback - Grady 2006, the v3-plan P1b candidate -
+        # was evaluated here and dropped: scikit-image's solver returns
+        # degenerate probabilities on these anisotropic thin-cleft ROIs, so
+        # it never produced an acceptable candidate. Pairs whose watershed
+        # candidate fails the gate simply revert.)
+    return out
+
+
+def _polish_gate(rec, sub, cand, a, b, zooms, tag, p0):
+    """Accept iff planarity strictly improves, swap bounded, no new fragments."""
+    m = (cand == a) | (cand == b)
+    swapped = int(((cand != sub) & m).sum())
+    n_min = min(int((sub == a).sum()), int((sub == b).sum()))
+    p1 = _planarity_mm(_pair_pts(cand, a, b), zooms)
+    rec[f"planarity_after_{tag}"] = None if p1 is None else round(p1, 2)
+    rec[f"swapped_vox_{tag}"] = swapped
+    ok = (p1 is not None and swapped > 0
+          and swapped <= P["polish_max_shift_frac"] * max(n_min, 1)
+          and p1 > p0 + P["polish_min_gain_mm"])
+    if ok:
+        for lab in (a, b):
+            _, c_new = _components(cand == lab)
+            _, c_old = _components(sub == lab)
+            if int((c_new > 0).sum()) > int((c_old > 0).sum()):
+                ok = False
+                rec["fragment_guard"] = ID_TO_NAME[lab]
+                break
+    rec["action"] = tag if ok else f"revert_{tag}"
+    return bool(ok)
+
+
+# --------------------------------------------------------------- stage 2e --
+def _centerline_xy(seg):
+    nz = seg.shape[2]
+    cx = np.full(nz, np.nan); cy = np.full(nz, np.nan)
+    for z in np.nonzero((seg > 0).any(axis=(0, 1)))[0]:
+        pts = np.nonzero(seg[:, :, z])
+        cx[z], cy[z] = pts[0].mean(), pts[1].mean()
+    ok = ~np.isnan(cx)
+    idx = np.nonzero(ok)[0]
+    if idx.size == 0:
+        return None, None
+    for arr in (cx, cy):
+        arr[ok] = ndimage.gaussian_filter1d(arr[ok], 10)
+        m = np.isnan(arr)
+        arr[m] = np.interp(np.nonzero(m)[0], idx, arr[idx])
+    return cx, cy
+
+
+def _shift2d_stack(vol, sx, sy):
+    """Integer per-slice (x, y) shifts with zero fill - exactly invertible
+    with (-sx, -sy). Shear-straightens a curved column so fixed-index
+    sagittal/coronal planes follow the anatomy along the whole spine."""
+    out = np.zeros_like(vol)
+    nx, ny, nz = vol.shape
+    for z in range(nz):
+        dx, dy = int(sx[z]), int(sy[z])
+        xs0, xs1 = max(0, -dx), min(nx, nx - dx)
+        ys0, ys1 = max(0, -dy), min(ny, ny - dy)
+        out[xs0:xs1, ys0:ys1, z] = vol[xs0 + dx:xs1 + dx, ys0 + dy:ys1 + dy, z]
+    return out
+
+
+def _mv_anchors(seg, ct, zooms, cx, cy):
+    """Per-level ANCHOR mass: voxels reachable from the level's BODY CORE
+    through its own label within mv_anchor_mm. Bodies are the most reliable
+    identity post-refinement (disc cuts), and a mislabeled process TIP is
+    45 mm+ from the wrong level's body THROUGH that level's label, so tips
+    can never anchor their captor."""
+    rb = (P["seed_radius_mm"] + 4.0)
+    anchors = np.zeros_like(seg)
+    it = max(int(np.ceil(P["mv_anchor_mm"] / min(zooms))), 1)
+    pad = np.ceil((P["mv_anchor_mm"] + 4.0) / np.asarray(zooms)).astype(int)
+    objs = ndimage.find_objects(seg)
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        sl = _bbox_pad(objs[lid - 1], pad, seg.shape)
+        lab = seg[sl] == lid
+        xx = (np.arange(sl[0].start, sl[0].stop, dtype=np.float32)[:, None, None]
+              - cx[None, None, sl[2].start:sl[2].stop]) * zooms[0]
+        yy = (np.arange(sl[1].start, sl[1].stop, dtype=np.float32)[None, :, None]
+              - cy[None, None, sl[2].start:sl[2].stop]) * zooms[1]
+        core = lab & (xx * xx + yy * yy <= rb * rb)
+        if not core.any():
+            core = ndimage.binary_erosion(lab, structure=STRUCT6, iterations=2)
+        if not core.any():
+            continue
+        reach = ndimage.binary_dilation(core, structure=STRUCT6, iterations=it,
+                                        mask=lab)
+        anchors[sl][reach] = lid
+    return anchors
+
+
+def stage2e_multiview_recolor(seg, ct, affine, zooms, vox_mm3, qa):
+    """Multiview waist-severed recoloring (recolor-only; envelope-safe).
+
+    Physics: a plate-on-plate contact (two spinous blades touching flat at
+    the interspinous space, a process resting on a lamina) is NOT a thin
+    waist in 3D - the EDT of a broad surface contact is large, so the 3D
+    race cannot see the joint. But in the 2D CROSS-SECTION of the view
+    whose plane contains the structure's long axis, the same contact is a
+    thin LINE: one erosion severs it, while the structure's own in-plane
+    core stays connected end to end. Hard from the axial view, easy from
+    the sagittal - so every voxel is judged in all three orthogonal views:
+
+      per view, per slice: erode the 2D bone cross-section by mv_neck_mm
+      (plate kisses vanish); each surviving 2D core component is identified
+      by which levels' ANCHOR mass it contains (see _mv_anchors); a
+      component with exactly ONE anchor level votes that level onto every
+      pixel it reconstructs in-plane (uniform 2D watershed); components
+      with zero or multiple anchors become BLOCKERS - they claim their own
+      shells and abstain, so a vote can never leak back across a severed
+      joint.
+
+    A component may only VOTE when the view sees the structure lengthwise:
+    its in-plane PCA elongation must exceed mv_elong (blades vote from the
+    sagittal view, transverse wings from the coronal; an axial cross-cut
+    of a fused tip is compact and abstains). All slicing runs in a
+    SHEAR-STRAIGHTENED frame (integer per-slice centerline shifts, exactly
+    invertible): on a scoliotic column a fixed plane drifts off-midline
+    and chains everything into one component, while the straightened plane
+    follows the anatomy end to end. A voxel is recolored only when its
+    votes are unanimous for one level different from its current label
+    (any conflicting view vetoes). Gates: per adjacent pair the swap is
+    bounded by mv_max_shift_frac of the smaller label, the losing label
+    must not fragment, and the stage reverts globally unless the audit
+    stays at least as clean."""
+    cx, cy = _centerline_xy(seg)
+    if cx is None:
+        qa["multiview"] = {"flipped_mm3": 0.0}
+        return seg
+    bone = ct >= P["bone_hu"]
+    anchors = _mv_anchors(seg, ct, zooms, cx, cy)
+    sx = np.round(cx - np.median(cx)).astype(int)
+    sy = np.round(cy - np.median(cy)).astype(int)
+    bone_s = _shift2d_stack(bone.astype(np.uint8), sx, sy).astype(bool)
+    anch_s = _shift2d_stack(anchors, sx, sy)
+    votes = np.zeros(seg.shape, dtype=np.uint8)      # sheared frame
+    conflict = np.zeros(seg.shape, dtype=bool)
+    SENT = 255
+    for ax in range(3):
+        n_sl = seg.shape[ax]
+        zo2 = tuple(z for i, z in enumerate(zooms) if i != ax)
+        for k in range(n_sl):
+            idx = [slice(None)] * 3
+            idx[ax] = k
+            idx = tuple(idx)
+            b2 = bone_s[idx]
+            if not b2.any():
+                continue
+            edt2 = ndimage.distance_transform_edt(b2, sampling=zo2)
+            core2 = edt2 >= P["mv_neck_mm"]
+            if not core2.any():
+                continue
+            lab2, n2 = ndimage.label(core2)
+            if n2 == 0:
+                continue
+            a2 = anch_s[idx]
+            sel = (a2 > 0) & (lab2 > 0)
+            comp_map = np.full(n2 + 1, SENT, dtype=np.int32)  # default: blocker
+            if sel.any():
+                pairs = np.unique(np.stack([lab2[sel], a2[sel]]).astype(np.int64),
+                                  axis=1)
+                comps, first = np.unique(pairs[0], return_index=True)
+                ncnt = np.bincount(pairs[0], minlength=n2 + 1)
+                # elongation gate: only lengthwise-seen structures may vote
+                ii, jj = np.nonzero(lab2)
+                cids = lab2[ii, jj]
+                for c, f in zip(comps, first):
+                    if ncnt[c] != 1:
+                        continue
+                    m = cids == c
+                    if m.sum() < 12:
+                        continue
+                    pts = np.c_[ii[m] * zo2[0], jj[m] * zo2[1]]
+                    pts = pts - pts.mean(0)
+                    cov = pts.T @ pts / len(pts)
+                    w = np.linalg.eigvalsh(cov)
+                    if w[1] >= P["mv_elong"] ** 2 * max(w[0], 1e-6):
+                        comp_map[c] = int(pairs[1, f])
+            comp_map[0] = 0
+            markers = comp_map[lab2]
+            if not (markers > 0).any() or not ((markers > 0) & (markers != SENT)).any():
+                continue
+            ws2 = watershed(np.zeros_like(markers, dtype=np.uint8),
+                            markers=markers, mask=b2)
+            v2 = votes[idx]
+            c2 = conflict[idx]
+            val = ws2.astype(np.uint8)
+            good = (val > 0) & (val != SENT)
+            c2 |= good & (v2 > 0) & (v2 != val)
+            newv = good & (v2 == 0)
+            v2[newv] = val[newv]
+            votes[idx] = v2
+            conflict[idx] = c2
+    # back to the original frame (exact inverse shifts)
+    votes = _shift2d_stack(votes, -sx, -sy)
+    conflict = _shift2d_stack(conflict.astype(np.uint8), -sx, -sy).astype(bool)
+    cand = (seg > 0) & (votes > 0) & ~conflict & (votes != seg)
+    if not cand.any():
+        qa["multiview"] = {"flipped_mm3": 0.0}
+        return seg
+    out = seg.copy()
+    out[cand] = votes[cand]
+    # gates: per-pair bound + loser-fragmentation guard
+    flips = {}
+    pts_from = seg[cand]
+    pts_to = votes[cand]
+    for a, b in zip(pts_from, pts_to):
+        flips[(int(a), int(b))] = flips.get((int(a), int(b)), 0) + 1
+    reverted_pairs = []
+    for (a, b), n in sorted(flips.items()):
+        n_min = min(int((seg == a).sum()), int((seg == b).sum()))
+        undo = False
+        if n > P["mv_max_shift_frac"] * max(n_min, 1):
+            undo = True
+        else:
+            _, c_new = _components(out == a)
+            _, c_old = _components(seg == a)
+            if int((c_new > 0).sum()) > int((c_old > 0).sum()):
+                undo = True
+        if undo:
+            m = cand & (seg == a) & (votes == b)
+            out[m] = a
+            reverted_pairs.append(f"{ID_TO_NAME[a]}->{ID_TO_NAME[b]}")
+    qa["multiview"] = {
+        "flipped_mm3": round(float((out != seg).sum()) * vox_mm3, 1),
+        "pair_flips_mm3": {f"{ID_TO_NAME[a]}->{ID_TO_NAME[b]}":
+                           round(n * vox_mm3, 1) for (a, b), n in flips.items()},
+        "reverted_pairs": reverted_pairs}
+    _, s_before = audit(seg, affine, vox_mm3)
+    _, s_after = audit(out, affine, vox_mm3)
+    bad = lambda s: s["n_fragmented"] + s["n_empty"] + s["n_size"] + s["n_order"]
+    if bad(s_after) > bad(s_before):
+        qa["multiview"]["reverted_all"] = True
+        qa["flags"].append("MULTIVIEW_REVERTED_ALL")
+        return seg
+    return out
+
+
+# --------------------------------------------------------------- stage 2f --
+def _masscut_mm2(seg, edtb, vox_mm3, thresh=2.5):
+    """Area of label-label boundary crossing bone thicker than thresh -
+    the violation meter for the core-integrity invariant."""
+    m = np.zeros(seg.shape, dtype=bool)
+    for ax in range(3):
+        s_hi = [slice(None)] * 3
+        s_lo = [slice(None)] * 3
+        s_hi[ax] = slice(1, None)
+        s_lo[ax] = slice(None, -1)
+        x, y = seg[tuple(s_hi)], seg[tuple(s_lo)]
+        b = (x > 0) & (y > 0) & (x != y)
+        m[tuple(s_hi)] |= b
+        m[tuple(s_lo)] |= b
+    return float((m & (edtb >= thresh)).sum()) * (vox_mm3 ** (2 / 3))
+
+
+def _boundary_edt2(mm, edt2):
+    """Mean in-plane thickness along the internal label boundary of a
+    labeled 2D patch (0 outside). Returns 0.0 when no internal boundary."""
+    bmask = np.zeros(mm.shape, dtype=bool)
+    for a2 in range(2):
+        sh = [slice(None)] * 2
+        sl_ = [slice(None)] * 2
+        sh[a2] = slice(1, None)
+        sl_[a2] = slice(None, -1)
+        xx, yy = mm[tuple(sh)], mm[tuple(sl_)]
+        bb = (xx > 0) & (yy > 0) & (xx != yy)
+        bmask[tuple(sh)] |= bb
+        bmask[tuple(sl_)] |= bb
+    if not bmask.any():
+        return 0.0
+    return float(np.mean(edt2[bmask]))
+
+
+def _badcut_pieces(seg, bone, zooms, cx_med, span=10, thresh=2.6):
+    """Direct defect meter: number of supra-neck 2D core pieces (sagittal,
+    within +/-span of midline) whose INTERNAL label boundary crosses bone
+    thicker than thresh - a boundary through the middle of a rigid piece.
+    Mixed pieces whose boundary sits at a thin waist (a legitimate joint
+    through a PV-fused pair) do NOT count."""
+    n_bad = 0
+    for x in range(cx_med - span, cx_med + span + 1):
+        if not (0 <= x < seg.shape[0]):
+            continue
+        b2 = bone[x] | (seg[x] > 0)
+        if not b2.any():
+            continue
+        edt2 = ndimage.distance_transform_edt(b2, sampling=(zooms[1], zooms[2]))
+        l2, n2 = ndimage.label((edt2 >= 1.2) & (seg[x] > 0))
+        s2 = seg[x]
+        for c in range(1, n2 + 1):
+            m = l2 == c
+            if m.sum() * zooms[1] * zooms[2] < 60:
+                continue
+            vals = s2[m]
+            ids, cnt = np.unique(vals[vals > 0], return_counts=True)
+            if ids.size < 2 or (cnt / cnt.sum()).min() < 0.15:
+                continue
+            if _boundary_edt2(np.where(m, s2, 0), edt2) >= thresh:
+                n_bad += 1
+    return n_bad
+
+
+def stage2f_skeleton_relabel(seg, ct, affine, zooms, vox_mm3, qa):
+    """CORE-INTEGRITY relabeling - the invariant, enforced in 3D:
+    A LABEL BOUNDARY MAY ONLY PASS THROUGH THIN BONE (joint clefts, PV
+    plates, necks) - NEVER THROUGH THE INTERIOR OF A THICK MASS. A facet
+    knob, a blade, a body is one rigid piece and carries one label.
+
+    Mechanism - PER-PIECE UNIFICATION (surgical, local, no seeds, no
+    propagation; the global re-derivations tried first kept leaking
+    through this case's pathological fusions and were auto-reverted):
+
+    A mixed in-plane core piece IS the defect by definition: one rigid 2D
+    cross-section piece (blade, knob), in-plane separated from its
+    neighbors, carrying two labels. Rule: such a piece is unified to its
+    majority label IFF physics says the internal boundary is impossible -
+    it crosses the piece's THICK interior (in-plane EDT at the internal
+    boundary >= skel_cut_mm). If the boundary sits at the piece's thin
+    waist it is a legitimate joint through a PV-fused pair - skipped. The
+    minority share must be <= 40% (a 50/50 split could be two whole fused
+    structures). Runs over all three orthogonal views in the
+    shear-straightened frame; recolor-only. Gates: the mixed-piece meter
+    must not increase, audit must not degrade, per-level shift <= 4 cm3,
+    else full revert."""
+    import gc
+    gc.collect()
+    # the pipeline crop follows the RAW prediction bbox, which scattered
+    # hallucinations inflate to most of the volume; by this stage seg is
+    # spine-only, so work on its tight bbox (~5x fewer voxels)
+    nzs = np.nonzero(seg)
+    if nzs[0].size == 0:
+        qa["skeleton"] = {"skipped": "empty"}
+        return seg
+    padv = np.ceil(8.0 / np.asarray(zooms)).astype(int)
+    tight = tuple(slice(max(int(c.min() - p), 0), min(int(c.max() + p + 1), n))
+                  for c, p, n in zip(nzs, padv, seg.shape))
+    seg_orig = seg
+    seg = seg[tight].copy()
+    ct = np.ascontiguousarray(ct[tight])
+    gc.collect()
+    bone = ct >= P["bone_hu"]
+    edtb = ndimage.distance_transform_edt(bone, sampling=zooms).astype(np.float32)
+    gc.collect()
+    mc_before = _masscut_mm2(seg, edtb, vox_mm3)
+    cx, cy = _centerline_xy(seg)
+    if cx is None:
+        qa["skeleton"] = {"skipped": "no centerline"}
+        return seg
+    sx = np.round(cx - np.median(cx)).astype(int)
+    sy = np.round(cy - np.median(cy)).astype(int)
+    seg_h = _shift2d_stack(seg, sx, sy)
+    bone_h = _shift2d_stack(bone.astype(np.uint8), sx, sy).astype(bool)
+    out_h = seg_h.copy()
+    for ax in range(3):
+        n_sl = seg.shape[ax]
+        zo2 = tuple(z for i, z in enumerate(zooms) if i != ax)
+        for k in range(n_sl):
+            idx = [slice(None)] * 3
+            idx[ax] = k
+            idx = tuple(idx)
+            s2 = out_h[idx]
+            lab2d = s2 > 0
+            if not lab2d.any():
+                continue
+            edt2 = ndimage.distance_transform_edt(
+                bone_h[idx] | lab2d, sampling=zo2)
+            l2, n2 = ndimage.label((edt2 >= P["mv_neck_mm"]) & lab2d)
+            if n2 == 0:
+                continue
+            for pid in range(1, n2 + 1):
+                m = l2 == pid
+                npx = int(m.sum())
+                if npx * zo2[0] * zo2[1] < 60:
+                    continue
+                vals = s2[m]
+                ids, cnt = np.unique(vals, return_counts=True)
+                sel = ids > 0
+                ids, cnt = ids[sel], cnt[sel]
+                if ids.size < 2:
+                    continue
+                order = np.argsort(cnt)[::-1]
+                major = int(ids[order[0]])
+                minority_frac = 1.0 - cnt[order[0]] / cnt.sum()
+                # physics test: internal boundary thickness within piece
+                mm = np.where(m, s2, 0)
+                bedt = _boundary_edt2(mm, edt2)
+                if bedt < P["skel_cut_mm"]:
+                    continue        # boundary at a thin waist: legit joint
+                if minority_frac <= 0.40:
+                    # split single structure: unify to majority
+                    s2[m & (mm != major) & (mm > 0)] = major
+                    continue
+                # PV-fused multi-structure piece: both sides are real -
+                # RELOCATE the internal boundary to the in-plane thickness
+                # valley (the kiss/joint plane) instead
+                mk = np.zeros_like(mm)
+                for lid_ in ids:
+                    part = mm == lid_
+                    er = ndimage.binary_erosion(part, iterations=3)
+                    mk[er if er.any() else part] = lid_
+                ws = watershed(-edt2.astype(np.float32), markers=mk, mask=m)
+                cand2 = np.where(m, ws, mm).astype(mm.dtype)
+                if _boundary_edt2(np.where(m, cand2, 0), edt2) < bedt - 0.2:
+                    s2[m] = cand2[m].astype(s2.dtype)
+    out = _shift2d_stack(out_h, -sx, -sy)
+    del out_h, seg_h, bone_h
+    gc.collect()
+    keep = seg > 0
+    out = np.where(keep, np.where(out > 0, out, seg), 0).astype(seg.dtype)
+    del keep
+    # per-slice decisions leave ragged seams: converge them with the
+    # volume-preserving 26-neighborhood interface majority vote, then fuse
+    # any disconnected slivers into their surrounding label (no deletion)
+    out = majority_filter(out, iters=2)
+    gc.collect()
+    out = absorb_orphans(out, vox_mm3, max_mm3=600.0, delete_below=0.0)
+    # a recolored sliver left detached from its new label (no labeled
+    # shell, so absorb cannot fuse it) reverts to its ORIGINAL label -
+    # envelope kept, no new fragments minted
+    for lid in [int(v) for v in np.unique(out) if v != 0]:
+        cc_, counts_ = _components(out == lid)
+        if (counts_ > 0).sum() <= 1:
+            continue
+        main_ = int(counts_.argmax())
+        for comp_id in np.nonzero(counts_)[0]:
+            if comp_id == main_ or counts_[comp_id] * vox_mm3 > 600.0:
+                continue
+            comp_ = cc_ == comp_id
+            if counts_[comp_id] * vox_mm3 < P["speck_mm3"]:
+                sh_ = ndimage.binary_dilation(comp_, structure=STRUCT26) & ~comp_
+                v_ = out[sh_]
+                v_ = v_[v_ > 0]
+                if v_.size:
+                    ids_, cnt_ = np.unique(v_, return_counts=True)
+                    out[comp_] = int(ids_[cnt_.argmax()])
+                    continue
+            if (seg[comp_] != lid).any():
+                out[comp_] = seg[comp_]
+    gc.collect()
+    mc_after = _masscut_mm2(out, edtb, vox_mm3)
+    del edtb
+    gc.collect()
+    cx_med = int(round(np.median(cx)))
+    mix_before = _badcut_pieces(seg, bone, zooms, cx_med)
+    mix_after = _badcut_pieces(out, bone, zooms, cx_med)
+    changed = int((out != seg).sum())
+    deltas = {}
+    for lid in [int(v) for v in np.unique(seg) if v != 0]:
+        d = (int((out == lid).sum()) - int((seg == lid).sum())) * vox_mm3 / 1e3
+        if abs(d) > 0.05:
+            deltas[ID_TO_NAME[lid]] = round(d, 2)
+    _, s_before = audit(seg, affine, vox_mm3)
+    _, s_after = audit(out, affine, vox_mm3)
+    bad = lambda s: s["n_fragmented"] + s["n_empty"] + s["n_size"] + s["n_order"]
+    rec = {"changed_mm3": round(changed * vox_mm3, 1),
+           "masscut_before_mm2": round(mc_before, 0),
+           "masscut_after_mm2": round(mc_after, 0),
+           "badcut_pieces_before": mix_before,
+           "badcut_pieces_after": mix_after,
+           "volume_deltas_cm3": deltas}
+    qa["skeleton"] = rec
+    # gate on the DIRECT defect meter (split pieces) + audit + bounded
+    # per-level shifts; masscut is reported only - the correct boundary
+    # through a plate-fused joint is legitimately thick, so thickness
+    # alone would veto right fixes.
+    over = [n for n, d in deltas.items() if abs(d) > 4.0]
+    if mix_after > mix_before or bad(s_after) > bad(s_before) or over:
+        rec["reverted_all"] = True
+        if over:
+            rec["over_shift"] = over
+        qa["flags"].append("SKELETON_REVERTED_ALL")
+        return seg_orig
+    out_full = seg_orig.copy()
+    out_full[tight] = out
+    return out_full
+
+
+# --------------------------------------------------------------- stage 2d --
+def stage2d_reclaim_pool(seg, raw, ct, zooms, vox_mm3, qa):
+    """Envelope rule: the raw prediction is the outer boundary - real BONE
+    inside it gets its CLASS fixed, it is never deleted. Runs last, so it
+    reclaims whatever the evidence stages removed and no band re-claimed
+    (the model systematically labels a transverse process with the level
+    above; stage 1 then removes it as far-from-its-label and, outside a
+    suspect band, nothing brought it back). Owner of each dropped bone
+    component (>= speck size) is decided by two independent physics:
+
+      1. AXIAL-RING VOTE (primary): in the axial projection a vertebra is
+         one closed ring, and a true process fragment is 2D-bone-connected
+         to its own ring within its own slices, while ribs cross slices as
+         disconnected in-plane islands. Vote = the label sharing the most
+         in-slice 2D bone-component pixels with the fragment.
+      2. 3D BONE-GEODESIC LINK: masked dilation through CT bone
+         (reclaim_link_mm); vote = the label with the most reached voxels.
+
+    The ring vote wins disagreements (both are logged). The fragment is
+    re-attached through the stage-1 CT-bone corridor at a widened neck
+    (reclaim_neck_mm) when possible. A fragment linked to NO vertebra
+    through bone is, by the label definition, not vertebra (pelvic or rib
+    hallucinations wearing a vertebra label) - it stays out and is flagged,
+    never silently dropped. Sub-bone-HU raw mass stays removed (evidence)."""
+    bone = ct >= P["bone_hu"]
+    pool = (raw > 0) & (seg == 0) & bone
+    cc, counts = _components(pool)
+    st2 = ndimage.generate_binary_structure(2, 1)
+    summary = {}
+    for comp_id in np.nonzero(counts)[0]:
+        vol = float(counts[comp_id]) * vox_mm3
+        if vol < P["speck_mm3"]:
+            continue
+        comp = cc == comp_id
+        objs = ndimage.find_objects(comp.astype(np.uint8))[0]
+        rl = raw[comp]
+        ids_r, cnt_r = np.unique(rl[rl > 0], return_counts=True)
+        rec = {"stage": "2d", "vol_mm3": round(vol, 1),
+               "raw_label": ID_TO_NAME[int(ids_r[cnt_r.argmax()])]}
+        ring_votes = {}
+        for z in range(objs[2].start, objs[2].stop):
+            cz = comp[:, :, z]
+            if not cz.any():
+                continue
+            lab2, _ = ndimage.label(bone[:, :, z], structure=st2)
+            for h in np.unique(lab2[cz]):
+                if h == 0:
+                    continue
+                labs = seg[:, :, z][lab2 == h]
+                for l, c in zip(*np.unique(labs[labs > 0], return_counts=True)):
+                    ring_votes[int(l)] = ring_votes.get(int(l), 0) + int(c)
+        ring = max(ring_votes, key=ring_votes.get) if ring_votes else 0
+        pad_vox = np.ceil((P["reclaim_link_mm"] + 2.0) / np.asarray(zooms)).astype(int)
+        slc = _bbox_pad(objs, pad_vox, seg.shape)
+        it = max(int(np.ceil(P["reclaim_link_mm"] / min(zooms))), 1)
+        reach = ndimage.binary_dilation(comp[slc], structure=STRUCT6,
+                                        iterations=it,
+                                        mask=bone[slc] | comp[slc])
+        labs = seg[slc][reach]
+        ids3, cnt3 = np.unique(labs[labs > 0], return_counts=True)
+        geo = int(ids3[cnt3.argmax()]) if ids3.size else 0
+        rec["ring_vote"] = ID_TO_NAME.get(ring, "-")
+        rec["geodesic_vote"] = ID_TO_NAME.get(geo, "-")
+        lid = ring if ring else geo
+        if lid == 0:
+            rec["action"] = "UNLINKED_NOT_VERTEBRA"
+            qa["flags"].append(
+                f"POOL_UNRESOLVED_{rec['raw_label']}_{int(vol)}mm3")
+            qa["records"].append(rec)
+            continue
+        mcc, mcounts = _components(seg == lid)
+        main = mcc == int(mcounts.argmax())
+        added = _bridge(seg, bone, main, comp, lid, zooms,
+                        neck_mm=P["reclaim_neck_mm"])
+        seg[comp] = lid
+        if added is not None:
+            seg[added] = lid
+            rec["action"] = "RECLAIMED_BRIDGED"
+            rec["bridge_added_mm3"] = round(float(added.sum()) * vox_mm3, 1)
+        else:
+            rec["action"] = "RECLAIMED_KEPT_SEPARATE"
+        nm = ID_TO_NAME[lid]
+        summary[nm] = round(summary.get(nm, 0.0) + vol / 1000.0, 2)
+        qa["records"].append(rec)
+    qa["reclaim_cm3_by_level"] = summary
+    # boundary slivers that could not bridge fuse into the label they touch
+    # (envelope rule: nothing deleted - delete_below=0)
+    return absorb_orphans(seg, vox_mm3, max_mm3=300.0, delete_below=0.0)
 
 
 def majority_filter(seg, iters=3):
@@ -689,9 +1842,11 @@ def majority_filter(seg, iters=3):
     return out
 
 
-def absorb_orphans(seg, vox_mm3, max_mm3=1200.0):
+def absorb_orphans(seg, vox_mm3, max_mm3=1200.0, delete_below=100.0):
     """Absorb non-largest components below max_mm3 into the label dominating
-    their shell (remove if speck-sized and shell-free)."""
+    their shell (remove if below delete_below and shell-free; delete_below=0
+    disables removal - used after pool reclamation, where the envelope rule
+    forbids deleting raw-labeled bone)."""
     out = seg.copy()
     for lid in [int(v) for v in np.unique(seg) if v != 0]:
         cc, counts = _components(out == lid)
@@ -711,7 +1866,7 @@ def absorb_orphans(seg, vox_mm3, max_mm3=1200.0):
             if votes.size >= 5:
                 ids, cnt = np.unique(votes, return_counts=True)
                 out[comp] = int(ids[cnt.argmax()])
-            elif counts[comp_id] * vox_mm3 < 100.0:
+            elif counts[comp_id] * vox_mm3 < delete_below:
                 out[comp] = 0
     return out
 
@@ -849,25 +2004,44 @@ def process_case(case_dir: Path, ct_root: Path, out_dir: Path, report_dir: Path)
     hi = np.minimum(np.array([c.max() for c in nz]) + pad + 1, seg_full.shape)
     sl = tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))
     seg = seg_full[sl].copy()
-    ct = ct_full[sl]
+    ct = np.ascontiguousarray(ct_full[sl])
+    full_shape = seg_full.shape
+    del seg_full, ct_full   # ~1.1 GB standing memory freed for the pipeline
     aff = seg_img.affine.copy()
     aff[:3, 3] = (seg_img.affine @ np.array([lo[0], lo[1], lo[2], 1.0]))[:3]
 
     qa = {"case": case_dir.name, "params": P, "records": [], "bands": [],
-          "flags": [], "smooth": []}
+          "flags": [], "polish": [], "smooth": []}
     _, s0 = audit(seg, aff, vox_mm3)
     log.info("%s input audit: %s", case_dir.name, s0)
     raw = seg.copy()
     seg = stage1_triage(seg, ct, zooms, vox_mm3, qa["records"])
     seg = stage2a_islands(seg, vox_mm3, qa["records"])
     seg = stage2b_arbitrate(seg, raw, ct, aff, zooms, vox_mm3, qa)
+    seg = stage2c_interface_polish(seg, ct, zooms, vox_mm3, qa)
     seg = stage3_smooth(seg, ct, zooms, vox_mm3, qa)
+    seg = stage2d_reclaim_pool(seg, raw, ct, zooms, vox_mm3, qa)
+    seg = stage2e_multiview_recolor(seg, ct, aff, zooms, vox_mm3, qa)
+    seg = stage2f_skeleton_relabel(seg, ct, aff, zooms, vox_mm3, qa)
+    seg = stage2g_imbrication(seg, ct, aff, zooms, vox_mm3, qa)
+    upv_t, upv_p = _imbrication_cm3(seg, ct, zooms, vox_mm3)
+    qa["imbrication_upv_cm3"] = {"total": upv_t, "per_level": upv_p}
+    bone_f = ct >= P["bone_hu"]
+    qa["envelope"] = {
+        "dropped_bone_cm3": round(float(((raw > 0) & (seg == 0) & bone_f).sum())
+                                  * vox_mm3 / 1e3, 2),
+        "dropped_subbone_cm3": round(float(((raw > 0) & (seg == 0) & ~bone_f).sum())
+                                     * vox_mm3 / 1e3, 2),
+        "recolored_cm3": round(float(((raw > 0) & (seg > 0) & (raw != seg)).sum())
+                               * vox_mm3 / 1e3, 2),
+        "added_beyond_raw_cm3": round(float(((raw == 0) & (seg > 0)).sum())
+                                      * vox_mm3 / 1e3, 2)}
     rows, s1 = audit(seg, aff, vox_mm3)
     qa["audit_before"], qa["audit_after"] = s0, s1
     qa["audit_rows_after"] = rows
     log.info("%s output audit: %s", case_dir.name, s1)
 
-    out_full = np.zeros_like(seg_full, dtype=np.uint8)
+    out_full = np.zeros(full_shape, dtype=np.uint8)
     out_full[sl] = seg
     write_case(out_dir, case_dir.name, out_full, seg_img)
     if report_dir:
