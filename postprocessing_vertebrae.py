@@ -1,4 +1,17 @@
-"""Evidence-edited, anatomy-audited post-processing for vertebra segmentations.
+"""ShapeKit-Pro: evidence-edited, anatomy-audited post-processing for
+vertebra segmentations.
+
+Author:  Abhijit Das  (abhijit.das@mbzuai.ac.ae / aj.das.research@gmail.com)
+Project: https://github.com/aj-das-research/jhu-bodymaps-warmup
+         The repository carries the full documentation for this file: an
+         illustrated README (animated raw-vs-refined comparisons, results
+         tables, metric plots), two method studies with the measured
+         failures of every rejected algorithm (documentation_v8/,
+         documentation_v9/), per-case machine-readable QA reports
+         (reports/), full-resolution diagnostic tooling and renders
+         (scripts/, visualizations/), and a synthetic ground-truth unit
+         test (tests/test_arch_phantom.py). Every number claimed in the
+         docstrings below is backed by a QA file in that repository.
 
 Refines SuPreM / TotalSegmentator-style vertebra predictions (C1..L5) on the
 AbdomenAtlasDemo scans. Design principle: fix MODEL errors, never "fix"
