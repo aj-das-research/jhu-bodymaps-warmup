@@ -1,6 +1,24 @@
 """ShapeKit-Pro: evidence-edited, anatomy-audited post-processing for
 vertebra segmentations.
 
+ABSTRACT. Segmentation models label vertebrae well until the anatomy gets
+hard: scoliosis, collapsed discs, and ankylosis make them fragment labels,
+misplace whole levels, and paint one vertebra's bone with a neighbor's
+color, while the standing delete-only cleanup tools remove real bone and can
+never return a mislabeled process to its true owner. This file solves the
+problem by RECOLORING INSIDE AN ENVELOPE instead of deleting: the raw
+prediction is treated as the outer boundary and is never grown or erased,
+the CT image is the only editor (HU valleys, bone corridors, and thickness
+waists justify every change), and each repair stage carries its own defect
+meter and reverts itself in full whenever it cannot prove improvement. Nine
+gated stages repair fragmentation, disc-plane assignment, posterior-arch
+ownership, and the one-level-down spinous chains that defeat every distance
+and thickness race. With one parameter set on both AbdomenAtlasDemo cases
+the output reaches zero structural audit flags, restores L1 from 23.3 to
+62.9 cm3 where the delete-only baseline shrinks it to 11.6, and re-attaches
+every spinous process to its own vertebra (upward violation 3.15 -> 0.21
+cm3), all verified at native resolution.
+
 Author:  Abhijit Das  (abhijit.das@mbzuai.ac.ae / aj.das.research@gmail.com)
 Project: https://github.com/aj-das-research/jhu-bodymaps-warmup
          The repository carries the full documentation for this file: an
@@ -213,11 +231,20 @@ P = {
 
 # ------------------------------------------------------------------ utils --
 def _bbox_pad(sl, pad_vox, shape):
+    """Takes: sl (tuple of slices from find_objects), pad_vox (per-axis voxel
+        padding), shape (array shape).
+    Does: grows a bounding box by the padding, clamped to the array bounds.
+    Returns: the padded tuple of slices.
+    """
     return tuple(slice(max(s.start - int(p), 0), min(s.stop + int(p), n))
                  for s, p, n in zip(sl, pad_vox, shape))
 
 
 def _components(mask):
+    """Takes: mask (3D bool).
+    Does: 26-connected component labeling (cc3d).
+    Returns: (labels volume, per-component voxel counts; counts[0] is zeroed).
+    """
     cc = cc3d.connected_components(mask.astype(np.uint8), connectivity=26)
     counts = np.bincount(cc.ravel())
     counts[0] = 0
@@ -225,7 +252,16 @@ def _components(mask):
 
 
 def audit(seg, affine, vox_mm3):
-    """Repo-convention audit: FRAGMENTED / SIZE(<0.6) / ORDER / EMPTY flags."""
+    """Repo-convention audit: FRAGMENTED / SIZE(<0.6) / ORDER / EMPTY flags.
+
+    Takes: seg (uint8 labels), affine (voxel-to-world, orients the S-I axis),
+        vox_mm3.
+    Does: the independent structural audit: per level it measures components,
+        volume, size ratio against neighbors, and centroid ordering, and raises
+        FRAGMENTED / EMPTY / SIZE / ORDER flags. Flags never edit voxels; every
+        stage gate consumes this.
+    Returns: (per-level row dicts, summary dict of flag counts).
+    """
     rows = []
     objs = ndimage.find_objects(seg)
     for name in TOP_DOWN:
@@ -271,6 +307,14 @@ def audit(seg, affine, vox_mm3):
 
 # ---------------------------------------------------------------- stage 1 --
 def stage1_triage(seg, ct, zooms, vox_mm3, records):
+    """Takes: seg (raw uint8 labels), ct (HU volume, same grid), zooms (mm),
+        vox_mm3, records (QA list, appended per decision).
+    Does: evidence triage of every disconnected component: sub-speck and
+        mostly-soft-tissue components are removed as noise, bone near its main
+        body re-attaches through a CT-certified corridor, and far bone is moved
+        to the unclaimed pool for stage 2d instead of being deleted.
+    Returns: the triaged label volume.
+    """
     out = seg.copy()
     bone = ct >= P["bone_hu"]
     for lid in [int(v) for v in np.unique(seg) if v != 0]:
@@ -318,6 +362,16 @@ def stage1_triage(seg, ct, zooms, vox_mm3, records):
 
 
 def _bridge(seg, bone, main, comp, lid, zooms, neck_mm=None):
+    """Takes: seg (labels, painted in place), bone (CT bone mask), main / comp
+        (bool masks of the label's main body and the candidate component), lid
+        (label id), zooms, neck_mm (optional corridor width cap).
+    Does: searches a padded box for a CT-bone corridor connecting comp to main
+        and, when one exists within the volume cap, paints the corridor's
+        unclaimed bone with lid, so re-attachment adds only image-certified
+        bone.
+    Returns: the painted corridor mask, or None when no admissible corridor
+        exists.
+    """
     neck_mm = P["near_mm"] if neck_mm is None else neck_mm
     nz_c = ndimage.find_objects(comp.astype(np.uint8))[0]
     nz_m = ndimage.find_objects(main.astype(np.uint8))[0]
@@ -344,6 +398,12 @@ def _bridge(seg, bone, main, comp, lid, zooms, neck_mm=None):
 
 # --------------------------------------------------------------- stage 2a --
 def stage2a_islands(seg, vox_mm3, records):
+    """Takes: seg, vox_mm3, records (QA list).
+    Does: island guard: a component enclosed at least 80 percent by one other
+        label and small relative to that host is absorbed by it, since
+        vertebrae do not interpenetrate.
+    Returns: the label volume with enclosed islands absorbed.
+    """
     out = seg.copy()
     vol = {int(l): int((seg == l).sum()) for l in np.unique(seg) if l != 0}
     for lid in sorted(vol):
@@ -381,6 +441,15 @@ def stage2a_islands(seg, vox_mm3, records):
 
 # --------------------------------------------------------------- stage 2b --
 def find_suspects(seg, raw, affine, vox_mm3):
+    """Takes: seg, raw (original prediction, for the unclaimed pool), affine,
+        vox_mm3.
+    Does: runs the audit, marks suspect levels (size, fragmentation, or
+        ordering anomalies, or a large nearby pool), and closes small gaps so
+        contiguous suspects and their audit-clean neighbors form re-arbitration
+        bands.
+    Returns: (list of level-name bands, suspect names, top-down list of present
+        levels).
+    """
     rows, _ = audit(seg, affine, vox_mm3)
     info = {r["name"].replace("vertebrae_", ""): r for r in rows if r["voxels"] > 0}
     order = [n for n in TOP_DOWN if n in info]
@@ -416,7 +485,15 @@ def find_suspects(seg, raw, affine, vox_mm3):
 
 def column_profile(seg, raw, ct, zooms):
     """Body centerline (largest in-plane bone component) + perpendicular
-    mean-HU profile: bodies read high, discs dip, even under kyphosis."""
+    mean-HU profile: bodies read high, discs dip, even under kyphosis.
+
+    Takes: seg, raw, ct, zooms.
+    Does: traces the per-slice column centroid and samples mean HU inside
+        centerline disks, producing the density profile whose minima are
+        intervertebral discs.
+    Returns: (cx, cy per-slice centroid arrays, smoothed HU profile; the
+        profile is zeros when the column is too short).
+    """
     bone = ct >= P["bone_hu"]
     M = (seg > 0) | ((raw > 0) & bone)
     Mb = M & bone
@@ -465,7 +542,17 @@ def column_profile(seg, raw, ct, zooms):
 
 
 def disc_minima(rho_s, z_lo, z_hi, n_cuts, zooms, pin_lo, pin_hi):
-    """Exactly n_cuts minima chosen by spacing-regularized DP with anchor pins."""
+    """Exactly n_cuts minima chosen by spacing-regularized DP with anchor pins.
+
+    Takes: rho_s (HU profile), z_lo / z_hi (search window), n_cuts (expected
+        disc count), zooms, pin_lo / pin_hi (whether the window ends anchor on
+        clean neighbors).
+    Does: selects exactly n_cuts profile minima by spacing-regularized dynamic
+        programming under body-height priors, so shallow or fused discs cannot
+        collapse the count.
+    Returns: sorted z indices of the chosen cuts, or None when the expected
+        count cannot be resolved (the band is then skipped, flagged).
+    """
     seg_rho = rho_s[z_lo:z_hi]
     if seg_rho.size < 5 or seg_rho.max() <= 0 or n_cuts <= 0:
         return [] if n_cuts == 0 else None
@@ -551,6 +638,13 @@ def arch_repartition(labels_ws, body_zone, A, band_ids, zooms, vox_mm3):
          mid-bridge. Phantom-measured ablations: "edt" (-EDT priority) has
          no post-neck resistance and splits hanging processes by depth
          order; "uniform" lets a root near a joint out-run a far pedicle.
+
+    Takes: labels_ws (band race result), body_zone (bool body domain), A (bool
+        arch domain), band_ids, zooms, vox_mm3.
+    Does: rebuilds posterior-arch ownership from pedicle-root seeds with the
+        waist-severed two-tier race (arch_cost modes: core = release, hier /
+        edt / uniform = measured ablations); bodies are never edited.
+    Returns: (labels with the arch re-owned, QA record dict).
     """
     body_lab = np.where(body_zone, labels_ws, 0).astype(np.int32)
     roots = np.zeros(A.shape, dtype=np.int32)
@@ -659,6 +753,15 @@ def arbitrate_band(seg, raw, ct, band, neighbors, cxs, cys, rho_s, zooms,
         classic touching-object splitter: thick masses (bodies, laminae) are
         claimed first and fronts meet at thin waists, which anatomically are
         the facet joints and the pars, not arbitrary mid-arch loci.
+
+    Takes: seg, raw, ct, band (level names), neighbors (clean levels below /
+        above), cxs / cys / rho_s (column geometry from column_profile), zooms,
+        vox_mm3, qa.
+    Does: re-arbitrates one suspect band end to end: disc cuts by DP, oblique
+        arc-length segment membership, agreement-extended body seeds, uniform
+        geodesic race, then the pedicle-root arch rebuild.
+    Returns: the re-arbitrated label volume, or None when disc counting is
+        unresolved.
     """
     bone = ct >= P["bone_hu"]
     band_ids = [NAME_TO_ID[n] for n in band]
@@ -810,7 +913,14 @@ def _spinous_frame(seg, ct, zooms):
     centerline, posterior side sign, per-z corridor front = body posterior
     edge + canal depth (DISH cannot fuse the body edge away), and per-level
     body z-bands from the 18 mm centerline cylinder - bodies are
-    disc-cut-validated, the trusted identity source."""
+    disc-cut-validated, the trusted identity source.
+
+    Takes: seg, ct, zooms.
+    Does: computes the shared spinous-corridor geometry used by the meter and
+        stage 2g.
+    Returns: dict with centerline (cx, cy), posterior sign, per-slice corridor
+        front y0, and per-level body bands; None when the column is too short.
+    """
     cx, cy = _centerline_xy(seg)
     if cx is None:
         return None
@@ -867,7 +977,14 @@ def _imbrication_cm3(seg, ct, zooms, vox_mm3, lids=None, tol_mm=5.0,
     is invisible to any z-test - ONLY root-attachment can decide it - so
     this meter is a tripwire, not a complete count.
     Returns (total_cm3, per_level_dict). Pass frame= to reuse (and to
-    measure before/after with IDENTICAL geometry)."""
+    measure before/after with IDENTICAL geometry).
+
+    Takes: seg, ct, zooms, vox_mm3, lids (levels to score, default all
+        present), tol_mm, frame (optional precomputed _spinous_frame so before
+        / after are measured in identical geometry).
+    Does: scores the spinous upward-violation meter defined above.
+    Returns: (total violating volume in cm3, per-level dict of offenders).
+    """
     fr = frame if frame is not None else _spinous_frame(seg, ct, zooms)
     if fr is None:
         return 0.0, {}
@@ -936,7 +1053,14 @@ def stage2g_imbrication(seg, ct, affine, zooms, vox_mm3, qa):
     keep their labels, nothing is deleted. Gates: upward-violation must
     improve (or stay ~0 with negligible churn), the mixed-piece meter must
     not increase, the audit must not degrade, per-level net shift <=
-    imb_max_shift_cm3 - else full revert."""
+    imb_max_shift_cm3 - else full revert.
+
+    Takes: seg, ct, affine, zooms, vox_mm3, qa (record written under key
+        'imbrication').
+    Does: the caudal-flow spinous repair described above.
+    Returns: the repaired label volume, or the input unchanged after a gated
+        full revert.
+    """
     fr = _spinous_frame(seg, ct, zooms)
     if fr is None:
         qa["imbrication"] = {"skipped": "no frame"}
@@ -1079,6 +1203,13 @@ def stage2g_imbrication(seg, ct, affine, zooms, vox_mm3, qa):
 
 
 def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
+    """Takes: seg, raw, ct, affine, zooms, vox_mm3, qa.
+    Does: finds suspect bands and runs arbitrate_band on each; a band edit is
+        kept only when its audit badness strictly improves, and the band's
+        imbrication meter is recorded before and after (report-only here; stage
+        2g owns the repair).
+    Returns: the label volume with all accepted band edits applied.
+    """
     bands, suspects, present = find_suspects(seg, raw, affine, vox_mm3)
     qa["suspects"] = suspects
     if not bands:
@@ -1130,7 +1261,14 @@ def stage2b_arbitrate(seg, raw, ct, affine, zooms, vox_mm3, qa):
 
 # --------------------------------------------------------------- stage 2c --
 def _adjacent_interfaces(seg):
-    """One sweep over 3 axes -> {(a,b): Nx3 voxel points}, a<b."""
+    """One sweep over 3 axes -> {(a,b): Nx3 voxel points}, a<b.
+
+    Takes: seg.
+    Does: collects the voxel coordinates of every label-label interface by face
+        adjacency.
+    Returns: dict mapping ordered label pairs (a, b) to N x 3 coordinate
+        arrays.
+    """
     out = {}
     for ax in range(3):
         s_hi = [slice(None)] * 3
@@ -1154,6 +1292,12 @@ def _adjacent_interfaces(seg):
 
 
 def _planarity_mm(pts, zooms):
+    """Takes: pts (N x 3 interface voxel coordinates), zooms.
+    Does: fits a plane by SVD in millimeter space and measures the RMS out-of-
+        plane residual, the flatness meter behind stage 2c (real joints
+        interdigitate; near-planar means geometric arbitration).
+    Returns: RMS distance in mm, or None for degenerate point sets.
+    """
     if pts is None or len(pts) < 50:
         return None
     Q = pts * np.asarray(zooms)
@@ -1163,6 +1307,11 @@ def _planarity_mm(pts, zooms):
 
 
 def _pair_pts(seg, a, b):
+    """Takes: seg, a, b (label ids).
+    Does: collects voxel coordinates on both sides of the a | b interface (face
+        adjacency).
+    Returns: N x 3 int array, or None when the pair does not touch.
+    """
     pts = []
     for ax in range(3):
         s_hi = [slice(None)] * 3
@@ -1190,7 +1339,14 @@ def stage2c_interface_polish(seg, ct, zooms, vox_mm3, qa):
     surface of the cleft (cortical endplate - disc - endplate reads
     bright-dark-bright, and the valley belongs to neither side). Each pair
     is accepted only if planarity strictly improves, the swap stays bounded,
-    and neither label fragments; otherwise it reverts. Flags never edit."""
+    and neither label fragments; otherwise it reverts. Flags never edit.
+
+    Takes: seg, ct, zooms, vox_mm3, qa (per-pair records appended under
+        'polish').
+    Does: the HU-valley interface re-solve described above.
+    Returns: the label volume with accepted per-pair boundary re-solves
+        applied.
+    """
     out = seg.copy()
     pairs = _adjacent_interfaces(out)
     adj = {tuple(sorted((NAME_TO_ID[TOP_DOWN[k]], NAME_TO_ID[TOP_DOWN[k + 1]])))
@@ -1255,7 +1411,16 @@ def stage2c_interface_polish(seg, ct, zooms, vox_mm3, qa):
 
 
 def _polish_gate(rec, sub, cand, a, b, zooms, tag, p0):
-    """Accept iff planarity strictly improves, swap bounded, no new fragments."""
+    """Accept iff planarity strictly improves, swap bounded, no new fragments.
+
+    Takes: rec (QA record, mutated), sub / cand (labels in the collar box
+        before and after), a, b (the pair), zooms, tag, p0 (planarity before).
+    Does: the per-pair acceptance test of stage 2c: planarity must strictly
+        improve by polish_min_gain_mm, the swap stays under
+        polish_max_shift_frac of the smaller label, and neither label may
+        fragment.
+    Returns: True when the candidate is accepted.
+    """
     m = (cand == a) | (cand == b)
     swapped = int(((cand != sub) & m).sum())
     n_min = min(int((sub == a).sum()), int((sub == b).sum()))
@@ -1279,6 +1444,13 @@ def _polish_gate(rec, sub, cand, a, b, zooms, tag, p0):
 
 # --------------------------------------------------------------- stage 2e --
 def _centerline_xy(seg):
+    """Takes: seg.
+    Does: per-slice centroid of all labeled voxels, interpolated across empty
+        slices and smoothed: the column centerline used by every sheared-frame
+        stage.
+    Returns: (cx, cy) float arrays over z, or (None, None) when too few labeled
+        slices exist.
+    """
     nz = seg.shape[2]
     cx = np.full(nz, np.nan); cy = np.full(nz, np.nan)
     for z in np.nonzero((seg > 0).any(axis=(0, 1)))[0]:
@@ -1298,7 +1470,13 @@ def _centerline_xy(seg):
 def _shift2d_stack(vol, sx, sy):
     """Integer per-slice (x, y) shifts with zero fill - exactly invertible
     with (-sx, -sy). Shear-straightens a curved column so fixed-index
-    sagittal/coronal planes follow the anatomy along the whole spine."""
+    sagittal/coronal planes follow the anatomy along the whole spine.
+
+    Takes: vol, sx / sy (integer per-slice shifts).
+    Does: shifts every z slice in-plane with zero fill; integer shifts make the
+        shear-straightening exactly invertible with negated shifts.
+    Returns: the shifted volume.
+    """
     out = np.zeros_like(vol)
     nx, ny, nz = vol.shape
     for z in range(nz):
@@ -1314,7 +1492,13 @@ def _mv_anchors(seg, ct, zooms, cx, cy):
     through its own label within mv_anchor_mm. Bodies are the most reliable
     identity post-refinement (disc cuts), and a mislabeled process TIP is
     45 mm+ from the wrong level's body THROUGH that level's label, so tips
-    can never anchor their captor."""
+    can never anchor their captor.
+
+    Takes: seg, ct, zooms, cx / cy (column centerline).
+    Does: builds the per-level ANCHOR mass described above (reach from the body
+        core through the level's own label, bounded by mv_anchor_mm).
+    Returns: uint8 volume of anchor labels.
+    """
     rb = (P["seed_radius_mm"] + 4.0)
     anchors = np.zeros_like(seg)
     it = max(int(np.ceil(P["mv_anchor_mm"] / min(zooms))), 1)
@@ -1371,7 +1555,12 @@ def stage2e_multiview_recolor(seg, ct, affine, zooms, vox_mm3, qa):
     (any conflicting view vetoes). Gates: per adjacent pair the swap is
     bounded by mv_max_shift_frac of the smaller label, the losing label
     must not fragment, and the stage reverts globally unless the audit
-    stays at least as clean."""
+    stays at least as clean.
+
+    Takes: seg, ct, affine, zooms, vox_mm3, qa (record under 'multiview').
+    Does: the unanimous three-view waist-severed recoloring described above.
+    Returns: the recolored volume, or the input after a gated full revert.
+    """
     cx, cy = _centerline_xy(seg)
     if cx is None:
         qa["multiview"] = {"flipped_mm3": 0.0}
@@ -1488,7 +1677,12 @@ def stage2e_multiview_recolor(seg, ct, affine, zooms, vox_mm3, qa):
 # --------------------------------------------------------------- stage 2f --
 def _masscut_mm2(seg, edtb, vox_mm3, thresh=2.5):
     """Area of label-label boundary crossing bone thicker than thresh -
-    the violation meter for the core-integrity invariant."""
+    the violation meter for the core-integrity invariant.
+
+    Takes: seg, edtb (3D bone EDT in mm), vox_mm3, thresh.
+    Does: measures the mass-cut meter described above.
+    Returns: label-boundary area crossing bone thicker than thresh, in mm2.
+    """
     m = np.zeros(seg.shape, dtype=bool)
     for ax in range(3):
         s_hi = [slice(None)] * 3
@@ -1504,7 +1698,15 @@ def _masscut_mm2(seg, edtb, vox_mm3, thresh=2.5):
 
 def _boundary_edt2(mm, edt2):
     """Mean in-plane thickness along the internal label boundary of a
-    labeled 2D patch (0 outside). Returns 0.0 when no internal boundary."""
+    labeled 2D patch (0 outside). Returns 0.0 when no internal boundary.
+
+    Takes: mm (2D labels of one piece, zero elsewhere), edt2 (in-plane
+        thickness map).
+    Does: measures how thick the bone is along the piece's INTERNAL label
+        boundary, the physics test of stages 2f and 2g.
+    Returns: mean in-plane thickness along that boundary in mm (0 when there is
+        none).
+    """
     bmask = np.zeros(mm.shape, dtype=bool)
     for a2 in range(2):
         sh = [slice(None)] * 2
@@ -1525,7 +1727,15 @@ def _badcut_pieces(seg, bone, zooms, cx_med, span=10, thresh=2.6):
     within +/-span of midline) whose INTERNAL label boundary crosses bone
     thicker than thresh - a boundary through the middle of a rigid piece.
     Mixed pieces whose boundary sits at a thin waist (a legitimate joint
-    through a PV-fused pair) do NOT count."""
+    through a PV-fused pair) do NOT count.
+
+    Takes: seg, bone, zooms, cx_med (median centerline x), span (parasagittal
+        half-width in slices), thresh.
+    Does: counts the badcut meter described above: mixed supra-neck 2D pieces
+        whose internal boundary crosses thick bone; boundaries at thin in-plane
+        waists (legitimate fused joints) are excluded.
+    Returns: the number of violating pieces.
+    """
     n_bad = 0
     for x in range(cx_med - span, cx_med + span + 1):
         if not (0 <= x < seg.shape[0]):
@@ -1570,7 +1780,12 @@ def stage2f_skeleton_relabel(seg, ct, affine, zooms, vox_mm3, qa):
     structures). Runs over all three orthogonal views in the
     shear-straightened frame; recolor-only. Gates: the mixed-piece meter
     must not increase, audit must not degrade, per-level shift <= 4 cm3,
-    else full revert."""
+    else full revert.
+
+    Takes: seg, ct, affine, zooms, vox_mm3, qa (record under 'skeleton').
+    Does: the per-piece core-integrity surgery described above.
+    Returns: the repaired volume, or the input after a gated full revert.
+    """
     import gc
     gc.collect()
     # the pipeline crop follows the RAW prediction bbox, which scattered
@@ -1747,7 +1962,13 @@ def stage2d_reclaim_pool(seg, raw, ct, zooms, vox_mm3, qa):
     (reclaim_neck_mm) when possible. A fragment linked to NO vertebra
     through bone is, by the label definition, not vertebra (pelvic or rib
     hallucinations wearing a vertebra label) - it stays out and is flagged,
-    never silently dropped. Sub-bone-HU raw mass stays removed (evidence)."""
+    never silently dropped. Sub-bone-HU raw mass stays removed (evidence).
+
+    Takes: seg, raw, ct, zooms, vox_mm3, qa (record under
+        'reclaim_cm3_by_level' plus flags).
+    Does: the axial-ring envelope reclamation described above.
+    Returns: the volume with re-owned raw-labeled fragments attached and fused.
+    """
     bone = ct >= P["bone_hu"]
     pool = (raw > 0) & (seg == 0) & bone
     cc, counts = _components(pool)
@@ -1820,7 +2041,14 @@ def majority_filter(seg, iters=3):
     Collapses voxel-scale interdigitation between adjacent labels (the source
     of spurious Euler handles). Label<->label swaps only; the mode must
     strictly beat the current label locally, so the filter converges and is
-    approximately volume-preserving."""
+    approximately volume-preserving.
+
+    Takes: seg, iters.
+    Does: iterated 26-neighborhood majority voting restricted to label-label
+        interfaces, the volume-preserving seam smoother shared by stages 2f,
+        2g, and 3.
+    Returns: the smoothed label volume.
+    """
     offs = [(dx, dy, dz) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
             for dz in (-1, 0, 1) if (dx, dy, dz) != (0, 0, 0)]
     out = seg.copy()
@@ -1859,7 +2087,15 @@ def absorb_orphans(seg, vox_mm3, max_mm3=1200.0, delete_below=100.0):
     """Absorb non-largest components below max_mm3 into the label dominating
     their shell (remove if below delete_below and shell-free; delete_below=0
     disables removal - used after pool reclamation, where the envelope rule
-    forbids deleting raw-labeled bone)."""
+    forbids deleting raw-labeled bone).
+
+    Takes: seg, vox_mm3, max_mm3 (largest non-main component that may fuse),
+        delete_below (specks under this with no labeled shell are dropped; 0
+        disables all deletion for envelope-safe stages).
+    Does: fuses every non-main component into the label surrounding it instead
+        of deleting it.
+    Returns: the volume with orphan components fused.
+    """
     out = seg.copy()
     for lid in [int(v) for v in np.unique(seg) if v != 0]:
         cc, counts = _components(out == lid)
@@ -1886,6 +2122,13 @@ def absorb_orphans(seg, vox_mm3, max_mm3=1200.0, delete_below=100.0):
 
 # ---------------------------------------------------------------- stage 3 --
 def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
+    """Takes: seg, ct, zooms, vox_mm3, qa (records under 'smooth').
+    Does: regularization: interface majority vote, orphan absorption, enclosed-
+        hole and directional pit filling, then bounded volume-preserving SDT
+        smoothing (changes within max_dev_mm, additions bone-gated, per-label
+        Dice and component-count guards with self-revert).
+    Returns: the regularized label volume.
+    """
     seg = majority_filter(seg, iters=3)
     seg = absorb_orphans(seg, vox_mm3)
     bone = ct >= P["bone_hu"]
@@ -1965,6 +2208,13 @@ def stage3_smooth(seg, ct, zooms, vox_mm3, qa):
 
 # --------------------------------------------------------------------- io --
 def load_case(case_dir: Path, ct_root: Path):
+    """Takes: case_dir (prediction folder holding combined_labels.nii.gz), ct_root
+        (data folder holding <case>/ct.nii.gz).
+    Does: loads the prediction and its CT on the shared native grid, clipping
+        HU to the scanner range.
+    Returns: (seg nibabel image, seg uint8 array, HU int16 array, ct nibabel
+        image), or None when inputs are missing.
+    """
     combined = case_dir / "combined_labels.nii.gz"
     if combined.exists():
         seg_img = nib.load(str(combined))
@@ -1993,6 +2243,12 @@ def load_case(case_dir: Path, ct_root: Path):
 
 
 def write_case(out_dir: Path, case_id: str, seg_full, seg_img):
+    """Takes: out_dir, case_id, seg_full (full-grid labels), seg_img (reference
+        nibabel image for grid and header).
+    Does: writes combined_labels.nii.gz plus the 24 binary per-vertebra masks
+        under segmentations/, matching the input grid exactly.
+    Returns: None (files on disk).
+    """
     case_out = out_dir / case_id
     (case_out / "segmentations").mkdir(parents=True, exist_ok=True)
     nib.save(nib.Nifti1Image(seg_full.astype(np.uint8), seg_img.affine, seg_img.header),
@@ -2004,6 +2260,13 @@ def write_case(out_dir: Path, case_id: str, seg_full, seg_img):
 
 
 def process_case(case_dir: Path, ct_root: Path, out_dir: Path, report_dir: Path):
+    """Takes: case_dir, ct_root, out_dir, report_dir.
+    Does: runs the full pipeline on one case: crop to the prediction bbox,
+        stages 1, 2a, 2b, 2c, 3, 2d, 2e, 2f, 2g, final meters, envelope
+        accounting, and audit, then writes the outputs and the QA JSON.
+    Returns: (audit summary before, audit summary after), or None when inputs
+        are missing.
+    """
     loaded = load_case(case_dir, ct_root)
     if loaded is None:
         return None
@@ -2065,6 +2328,12 @@ def process_case(case_dir: Path, ct_root: Path, out_dir: Path, report_dir: Path)
 
 
 def main():
+    """Takes: command-line arguments: --pred_dir, --ct_root, --out_dir,
+        --report_dir, --case.
+    Does: CLI entry point: processes every case folder under pred_dir (or the
+        one selected) and logs the before / after audit summaries.
+    Returns: None.
+    """
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pred_dir", required=True, type=Path)
     ap.add_argument("--ct_root", required=True, type=Path,
