@@ -1,189 +1,435 @@
-# JHU BodyMaps RA warm-up: vertebrae segmentation + ShapeKit baseline
+# JHU BodyMaps RA Warm-up — Vertebrae Segmentation, Audit, and Evidence-Edited Refinement
 
-Working repo for the BodyMaps Research Assistant warm-up (SuPreM "Apply to Vertebrae
-Segmentation"). Full spec in [docs/official_warmup_spec.md](docs/official_warmup_spec.md).
+Warm-up deliverable for the BodyMaps Research Assistant task (SuPreM "Apply to
+Vertebrae Segmentation", official spec: [docs/official_warmup_spec.md](docs/official_warmup_spec.md)).
 
-Pipeline: run the lab's pretrained Swin UNETR (TotalSegmentator vertebra classes, C1–L5)
-on the two demo CT scans to produce `AbdomenAtlasDemoPredict/`, audit label errors, then
-run ShapeKit as the standing post-processing baseline (`AbdomenAtlasDemoPredict_shapekit/`).
-Static raw-vs-ShapeKit slice panels live under `reports/figures/raw_vs_shapekit/`.
+The project runs the lab's pretrained Swin UNETR on the two AbdomenAtlasDemo CT
+scans, audits the vertebra label errors, runs ShapeKit as the standing
+post-processing baseline, and then fixes the errors with our own single-file,
+CPU-only, evidence-edited refinement pipeline — **`postprocessing_vertebrae.py`**,
+the submission deliverable at the repo root.
 
-## Layout
-```
-postprocessing_vertebrae.py     THE deliverable: evidence-edited refinement (stages 1-3 + audit)
-scripts/download_data.sh        fetch demo CTs + checkpoint from cs.jhu.edu (not in git)
-scripts/setup_env_hpc.sh        CIAI: conda suprem + third_party/SuPreM (idempotent)
-scripts/run_inference_hpc.sh    CIAI: official --customize inference -> AbdomenAtlasDemoPredict/
-scripts/audit_predictions.py    Phase A: volume / components / SIZE / ORDER flags
-scripts/check_pred_grid.py      CT vs prediction grid check (ITK-SNAP overlay)
-scripts/setup_shapekit_hpc.sh   Phase B: conda shapekit + third_party/ShapeKit
-scripts/run_shapekit_hpc.sh     Phase B: ShapeKit CPU baseline + re-audit
-scripts/sbatch_shapekit.sh      Phase B: long CPU batch job for ShapeKit
-scripts/compare_audits.py       Phase B: before vs after audit diff
-scripts/plot_slice_compare_panel.py   raw vs ShapeKit 3×2 diagnostic panels
-scripts/render_error_panels.py  optional audit-driven PNG panels
-configs/shapekit_vertebrae.yaml ShapeKit config (vertebrae-only; affine = L1)
-third_party/SuPreM/             upstream clone (gitignored; created by setup_env_hpc.sh)
-third_party/ShapeKit/           upstream clone (gitignored; created by setup_shapekit_hpc.sh)
-notebooks/BodyMaps_RA_warmup.ipynb   Colab: env, inference, error audit, refinement, zip
-docs/official_warmup_spec.md    the official tutorial, transcribed
-docs/JHU_BodyMaps_RA_Prep_Guide.md   research briefing + positioning notes
-hpc guide/                      reusable CIAI cluster notes (not project-specific)
-reports/figures/raw_vs_shapekit/     diagnostic PNGs
-data/                           gitignored; created by the download script
-```
+**Headline result** (identical parameters on both cases, no per-case tuning):
 
-## HPC (CIAI) — env + inference
+| case | raw SuPreM output | ShapeKit baseline | ours (`AbdomenAtlasDemoPredict_refined/`) |
+|---|---|---|---|
+| BDMAP_00000006 (clean patient) | 10 fragmented labels, 1 ordering violation | clean, but **deletes** real C1 bone | all clean, every CT-certified bone voxel preserved |
+| BDMAP_00000031 (sick patient: scoliosis + DISH/ankylosis) | 21 fragmented labels, L1 at 23 cm³ vs ~60 cm³ neighbors, spinous processes mislabeled across T7..L2 | 0 fragmented but L1 **worsens** to 11.6 cm³ | all clean; L1 restored to ~64 cm³ at detected disc planes; every spinous process re-attached to its own vertebra (upward-violation 3.15 → 0.21 cm³) |
 
-Cluster how-to (salloc, conda init, TMPDIR): [hpc guide/README.md](hpc%20guide/README.md).
+Final verification with the independent audit: `reports/audit_refined.json` —
+**0 fragmented, 0 empty, 0 ordering violations across both cases.**
 
-Project workflow on a GPU node:
+---
+
+## Table of contents
+
+1. [Quickstart (view the results in 2 minutes)](#1-quickstart-view-the-results-in-2-minutes)
+2. [Requirements](#2-requirements)
+3. [Repository map](#3-repository-map)
+4. [Getting the data](#4-getting-the-data)
+5. [Reproducing everything, phase by phase](#5-reproducing-everything-phase-by-phase)
+6. [The refinement pipeline (the deliverable)](#6-the-refinement-pipeline-the-deliverable)
+7. [Running on small machines (low-memory mode)](#7-running-on-small-machines-low-memory-mode)
+8. [Verifying and visualizing results](#8-verifying-and-visualizing-results)
+9. [Tests](#9-tests)
+10. [QA reports — what every JSON means](#10-qa-reports--what-every-json-means)
+11. [Method studies (why the pipeline looks the way it does)](#11-method-studies-why-the-pipeline-looks-the-way-it-does)
+12. [Version history](#12-version-history)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Label-id reference](#14-label-id-reference)
+
+---
+
+## 1. Quickstart (view the results in 2 minutes)
+
+The **refined segmentations are already committed** — you do not need to run
+anything to inspect the result:
 
 ```bash
-# Interactive GPU (prefer salloc; max 3h on gpu-debug-qos)
+# the final refined predictions (per case):
+AbdomenAtlasDemoPredict_refined/BDMAP_00000031/combined_labels.nii.gz   # <- open this
+AbdomenAtlasDemoPredict_refined/BDMAP_00000031/segmentations/           # 24 per-vertebra masks
+```
+
+To overlay on the CT in **ITK-SNAP** (needs the CT, which is not in git — see
+[§4](#4-getting-the-data)):
+
+1. `File → Open Main Image` → `data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz`
+2. `Segmentation → Open Segmentation` → `AbdomenAtlasDemoPredict_refined/BDMAP_00000031/combined_labels.nii.gz`
+3. Compare with the raw model output by swapping in
+   `AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz`.
+
+No CT at hand? Pre-rendered before/after galleries are in
+[`visualizations/`](visualizations/) (five 3D view angles + one-row-per-vertebra
+sheets, raw vs refined, both cases), and full-resolution debug renders of the
+hardest region are in [`visualizations/debug_spinous/`](visualizations/debug_spinous/).
+
+Version-tagged copies (`combined_labels_v8.nii.gz`, `combined_labels_v9.nii.gz`,
+…) sit next to each `combined_labels.nii.gz` so any historical stage of the
+refinement can be loaded side-by-side. `combined_labels.nii.gz` **always equals
+the newest version** (currently v9). `AbdomenAtlasDemoPredict_refined.tar.gz` is
+the same folder as one archive.
+
+## 2. Requirements
+
+The refinement pipeline is **CPU-only** and needs five packages:
+
+```bash
+pip install numpy scipy nibabel scikit-image connected-components-3d
+```
+
+- Python ≥ 3.9 (3.10/3.11 fine).
+- RAM: ~9 GB peak for the large case in one process; **any machine with ≥4 GB
+  works using the phased driver** (see [§7](#7-running-on-small-machines-low-memory-mode)).
+- Runtime (2 CPU cores): BDMAP_00000006 ≈ 2 min; BDMAP_00000031 ≈ 30 min
+  (0.9×0.9×0.7 mm whole-spine volume, 1394 slices).
+
+GPU is only needed for the *inference* phase that produces the raw predictions
+(already committed under `AbdomenAtlasDemoPredict/`), so most users never need it.
+
+## 3. Repository map
+
+```
+postprocessing_vertebrae.py          THE DELIVERABLE - single-file refinement pipeline
+                                     (stages 1, 2a-2g, 3 + audit; ~100 KB, heavily documented)
+
+AbdomenAtlasDemoPredict/             raw SuPreM inference output (input to the pipeline)
+AbdomenAtlasDemoPredict_shapekit/    ShapeKit baseline output (Phase B)
+AbdomenAtlasDemoPredict_refined/     OUR refined output (Phase C result; v-tagged history inside)
+AbdomenAtlasDemoPredict_refined.tar.gz   same as the folder, single archive
+
+data/                                (gitignored) demo CTs + model checkpoint - scripts/download_data.sh
+
+scripts/
+  download_data.sh                   fetch demo CTs + 720 MB checkpoint (idempotent, resumes)
+  setup_env_hpc.sh                   HPC: conda env 'suprem' + third_party/SuPreM clone
+  run_inference_hpc.sh               HPC: official --customize inference -> AbdomenAtlasDemoPredict/
+  setup_shapekit_hpc.sh              HPC: conda env 'shapekit' + third_party/ShapeKit clone
+  run_shapekit_hpc.sh                ShapeKit baseline (CPU), interactive
+  sbatch_shapekit.sh                 ShapeKit as a Slurm batch job (large case > 3 h)
+  audit_predictions.py               independent audit: volumes / components / SIZE / ORDER flags
+  check_pred_grid.py                 CT-vs-prediction grid check (safe ITK-SNAP overlay?)
+  compare_audits.py                  before-vs-after audit diff
+  run_lowmem.py                      run the SAME pipeline in 3 memory-bounded phases
+  run_stagedump.py                   phase 1 with per-stage checkpoints (debugging)
+  run_2bonly.py                      stages 1-2b only, prints band-gate telemetry
+  test_2g_direct.py                  A/B harness: apply stage 2g alone to an existing output
+  diag_blades.py                     FULL-RESOLUTION spinous diagnosis: renders + root tracer + meter
+  diag_v8.py, diag_processes.py, diag_pool.py    defect meters used during development
+  interface_metrics.py               per-interface planarity / contact metrics
+  render_3d_views.py                 5-angle 3D galleries + per-vertebra sheets (raw vs refined)
+  render_lateral.py, render_isolation.py, plot_iface_overlay.py   render helpers
+  plot_slice_compare_panel.py        raw-vs-ShapeKit slice panels
+  render_error_panels.py             audit-driven error panels
+  experimental/                      kept failed experiments (documented, not wired in)
+
+tests/test_arch_phantom.py           synthetic 3-level phantom gating the arch rebuild (run it!)
+
+reports/
+  audit_before.json / audit_shapekit.json / audit_refined.json   the three-way comparison
+  BDMAP_*_postprocessing_qa.json     full per-case QA emitted by the pipeline
+  v9/                                QA of the current (v9) run incl. every stage record
+  *_interface_metrics.json           interface planarity metrics
+  figures/                           refinement + raw-vs-shapekit figures
+  snapshots/                         annotated error-review screenshots that drove v6-v9
+
+visualizations/                      3D galleries (raw vs refined, both cases)
+  debug_spinous/                     full-res diagnosis of the spinous-process error class:
+                                     defect confirmation, violation overlays, stage A/Bs,
+                                     final verification + JSON measurement tables
+
+documentation_v8/                    method study: split nodules / fused blades (stage 2f)
+documentation_v9/                    method study: the spinous one-down chain (stage 2g)
+
+docs/official_warmup_spec.md         the official task, transcribed
+docs/JHU_BodyMaps_RA_Prep_Guide.md   research briefing
+docs/refinement_v3_plan.md           early design notes (historical)
+configs/shapekit_vertebrae.yaml      ShapeKit config used for the baseline
+notebooks/BodyMaps_RA_warmup.ipynb   Colab path: env + inference + audit end-to-end
+hpc guide/                           general CIAI cluster notes (salloc, conda, batch)
+third_party/                         (gitignored) upstream SuPreM / ShapeKit clones
+```
+
+## 4. Getting the data
+
+Everything not in git is fetched by one script (needs ~4 GB free):
+
+```bash
+bash scripts/download_data.sh
+# -> data/AbdomenAtlasDemo/BDMAP_00000006/ct.nii.gz
+#    data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz
+#    data/supervised_suprem_swinunetr_2100.pth   (720 MB checkpoint, inference only)
+```
+
+It resumes partial downloads and skips finished extraction, so re-running is safe.
+The CTs are required for the refinement pipeline (it reads HU values); the
+checkpoint is required only to re-run inference.
+
+## 5. Reproducing everything, phase by phase
+
+Already-committed artifacts let you start at any phase. Full chain:
+
+### Phase 0 — inference (GPU; skip if `AbdomenAtlasDemoPredict/` is enough)
+
+On the CIAI cluster ([hpc guide/README.md](hpc%20guide/README.md) for salloc etc.):
+
+```bash
 salloc -p long --qos=gpu-debug-qos --gres=gpu:1 --cpus-per-task=8 --mem=64G -t 03:00:00
-
-cd ~/projects/jhu-bodymaps-warmup
-bash scripts/download_data.sh      # once, if data/ not present (login or GPU OK)
-bash scripts/setup_env_hpc.sh      # conda env 'suprem' + third_party/SuPreM
-bash scripts/run_inference_hpc.sh  # -> AbdomenAtlasDemoPredict/
+bash scripts/download_data.sh
+bash scripts/setup_env_hpc.sh        # idempotent conda env 'suprem'
+bash scripts/run_inference_hpc.sh    # -> AbdomenAtlasDemoPredict/
 ```
 
-`setup_env_hpc.sh` is idempotent: skips env create and pip groups that already match.
-`run_inference_hpc.sh` keeps caches under `$HOME/tmp` (some nodes have full `/tmp`),
-loads the ~720 MB checkpoint on CPU first, then runs with `--customize --device cuda`.
+Do **not** Ctrl-C during checkpoint load — it can look idle for minutes on NFS.
+Or use Colab: open `notebooks/BodyMaps_RA_warmup.ipynb` with a GPU runtime; it
+downloads data, builds the pinned python=3.9 env and runs the same inference.
 
-**Do not Ctrl-C** during checkpoint load — it can look idle for a few minutes on NFS.
-
-Expected outputs:
-
-```text
-AbdomenAtlasDemoPredict/
-  BDMAP_00000006/
-    combined_labels.nii.gz
-    segmentations/vertebrae_C1.nii.gz ... vertebrae_L5.nii.gz
-  BDMAP_00000031/
-    ...
-```
-
-After inference, activate the env in your shell if needed:
+### Phase A — audit the raw predictions (CPU)
 
 ```bash
-source /apps/local/conda_init.sh
-conda activate suprem
+python scripts/audit_predictions.py --pred_dir AbdomenAtlasDemoPredict --report reports/audit_before.json
+python scripts/check_pred_grid.py   --ct_dir data/AbdomenAtlasDemo --pred_dir AbdomenAtlasDemoPredict --report reports/grid_check.json
 ```
 
-### Phase A — audit + grid check (CPU, `suprem` env)
+The audit flags, per vertebra: FRAGMENTED (multiple components), EMPTY, SIZE
+(volume out of line with neighbors), ORDER (centroids out of anatomical order).
+The grid check confirms CT and predictions share a voxel grid (they do), so
+ITK-SNAP overlays need no resampling.
+
+### Phase B — ShapeKit baseline (CPU, long)
 
 ```bash
-conda activate suprem
-python scripts/audit_predictions.py \
-    --pred_dir AbdomenAtlasDemoPredict \
-    --report reports/audit_before.json
-
-python scripts/check_pred_grid.py \
-    --ct_dir data/AbdomenAtlasDemo \
-    --pred_dir AbdomenAtlasDemoPredict \
-    --report reports/grid_check.json
-```
-
-If grids match, ITK-SNAP can overlay without resampling. If not, keep submission
-preds on their native grid and resample a *viewing copy* only.
-
-### Phase B — ShapeKit baseline (CPU, separate `shapekit` env)
-
-ShapeKit is **CPU-only** (extra GPUs do not help). One large case can exceed the
-3h `gpu-debug-qos` interactive limit — submit a **batch CPU job** instead:
-
-```bash
-# once
 bash scripts/setup_shapekit_hpc.sh
-
-# from a login node (ciai-login-*): finishes incomplete case(s), then audits
-mkdir -p reports/slurm
-CASE=BDMAP_00000031 sbatch scripts/sbatch_shapekit.sh
-
-squeue -u $USER
-tail -f reports/slurm/shapekit-vert-<JOBID>.out
-# when done:
-conda activate suprem
-python scripts/compare_audits.py \
-    --before reports/audit_before.json \
-    --after  reports/audit_shapekit.json
+CASE=BDMAP_00000031 sbatch scripts/sbatch_shapekit.sh     # big case: batch job
+bash scripts/run_shapekit_hpc.sh                          # small case: interactive
+python scripts/compare_audits.py --before reports/audit_before.json --after reports/audit_shapekit.json
 ```
 
-Short interactive runs (≤3h, small cases only):
+Finding: ShapeKit removes fragment speckles but, being delete-only, also removes
+real bone (C1 tips, case 6) and deepens the L1 mass error on the sick case.
+Note: ShapeKit rewrites label ids to AbdomenAtlas 26–49 (see [§14](#14-label-id-reference)).
+
+### Phase C — our refinement (CPU; **the deliverable**)
 
 ```bash
-bash scripts/run_shapekit_hpc.sh
-# or one case: CASE=BDMAP_00000006 bash scripts/run_shapekit_hpc.sh
-```
-
-Falsifiable ask: ShapeKit should crush FRAGMENTED speckles; surviving SIZE / ordering
-issues mark where delete-only cleanup is insufficient.
-
-**Label-id note:** SuPreM `combined_labels` uses vertebrae ids **1–24** (L5=1 … C1=24).
-ShapeKit rewrites the same anatomy with AbdomenAtlas ids **26–49**. Per-mask files
-and audits are unaffected; ITK-SNAP / panels may show different palette colors for
-the same vertebra.
-
-Cluster batch notes: [hpc guide/batch-jobs.md](hpc%20guide/batch-jobs.md).
-
-### Diagnostic panels — raw vs ShapeKit
-
-```bash
-conda activate suprem
-python scripts/plot_slice_compare_panel.py
-# -> reports/figures/raw_vs_shapekit/BDMAP_00000006/vertebrae_C1/axial_319_panel.png
-
-# every axial plane where raw XOR ShapeKit is non-empty:
-python scripts/plot_slice_compare_panel.py --diff_slices
-```
-
-See [reports/figures/README.md](reports/figures/README.md).
-
-### Phase C — evidence-edited refinement (ours)
-
-`postprocessing_vertebrae.py` (repo root) is the submission deliverable. Principle:
-the CT is the only editor, anatomy only audits. Stage 1 triages disconnected
-components by image evidence (speck / soft / bone-near bridged through a CT-bone
-corridor / bone-far pooled); stage 2 re-arbitrates SUSPECT bands only: the column is
-segmented by disc minima of a mean-HU profile sampled perpendicular to the body
-centerline (spacing-regularized DP, anchored on audit-clean neighbors), then a
-uniform-speed geodesic competition through the bone domain reassigns mass so fronts
-meet at low-HU clefts. C1/C2 skipped (no disc), unresolved disc counts skip with a
-flag, and a band reverts unless the audit strictly improves. Stage 3 fills enclosed
-holes and applies bounded volume-preserving SDT smoothing (Dice >= 0.97 guard).
-
-```bash
-conda activate suprem   # needs: numpy scipy nibabel scikit-image connected-components-3d
 python postprocessing_vertebrae.py \
     --pred_dir AbdomenAtlasDemoPredict \
     --ct_root  data/AbdomenAtlasDemo \
     --out_dir  AbdomenAtlasDemoPredict_refined \
     --report_dir reports
+# one case only: add  --case BDMAP_00000031
 python scripts/compare_audits.py --before reports/audit_before.json --after reports/audit_refined.json
 ```
 
-Results (identical parameters both cases; QA in `reports/*_postprocessing_qa.json`):
+Outputs per case: `combined_labels.nii.gz` + `segmentations/vertebrae_*.nii.gz`
+(24 masks) + `reports/<case>_postprocessing_qa.json` (full stage-by-stage QA).
 
-| case | before | ShapeKit | ours |
-|---|---|---|---|
-| BDMAP_00000006 | 10 FRAG, 1 ORDER | clean, but deletes C1 tips on CT-certified bone | all clean, tips preserved |
-| BDMAP_00000031 | 21 FRAG, L1 SIZE 0.44 | 0 FRAG, L1 worsens to 11.6 cm3 (SIZE 0.20) | all clean, L1 restored to 64 cm3 at detected disc planes |
+## 6. The refinement pipeline (the deliverable)
 
-Figures: `reports/figures/refinement/` (3-way 3D + volumes, sagittal band overlay,
-density profile with DP-chosen disc cuts).
+**Design rule #1 — the envelope rule:** the raw prediction is the outer
+boundary. The pipeline *recolors* voxels inside it and never grows beyond it;
+real bone inside the envelope is never deleted, only re-owned.
 
-## Local (view in ITK-SNAP)
+**Design rule #2 — the CT is the only editor; anatomy audits.** Every edit is
+justified by image evidence (HU corridors, disc-plane minima, bone thickness);
+anatomical priors decide only *where to look* and *when to revert*.
+
+**Design rule #3 — every stage carries its own defect meter and reverts
+itself** when the meter, the audit, or a bounded-shift check degrades. On the
+clean case most late stages self-revert (correctly: nothing to fix); on the sick
+case the same parameters repair it. No per-case tuning anywhere.
+
+Stage order as wired in `process_case` (each stage's docstring in
+`postprocessing_vertebrae.py` carries the full reasoning and the measured
+failures of the alternatives):
+
+| stage | name | what it does |
+|---|---|---|
+| 1 | evidence triage | disconnected components kept / bridged through a CT-bone corridor / pooled / deleted-as-speck, by image evidence only |
+| 2a | island guard | absorbs enclosed wrong-label islands inside a host label |
+| 2b | disc-aware band re-arbitration | detects SUSPECT level-bands (size/fragment/order anomalies); segments the column by disc minima of a perpendicular mean-HU profile (DP with body-height priors); re-races the band's bone with arc-length oblique cuts; the **posterior arch is rebuilt from pedicle roots** with a waist-severed two-tier race; per-band audit gate + imbrication meter recorded |
+| 2c | interface polish | guillotine-flat label interfaces re-solved in a small collar by HU-valley watershed (joints are dark clefts); per-pair planarity gate |
+| 3 | regularization | interface majority vote, orphan absorption, enclosed-hole fill, bounded volume-preserving SDT smoothing (Dice ≥ 0.97 guard) |
+| 2d | pool reclamation | every dropped raw-labeled bone fragment is re-owned via the axial-ring vote + 3D bone-geodesic linkage, re-attached through a CT-bone corridor; unlinkable fragments stay out, flagged |
+| 2e | multiview recolor | plate-on-plate contacts are thin LINES in the right 2D view: per-view eroded cores vote their anchor level; unanimous cross-view votes recolor; ambiguous cores abstain |
+| 2f | core-integrity surgery | a mixed in-plane supra-neck piece is the defect: unify small minorities across thick-interior boundaries, relocate near-50/50 boundaries to the in-plane thickness valley |
+| 2g | imbrication repair | spinous blades droop caudally, never grow toward the head: the midline posterior corridor is re-derived by a top-to-bottom consecutive-slice flow seeded from band-consistent ring-strip labels; fixes the one-level-down spinous chains that defeat every distance/thickness race |
+| 4 | audit | final fragmentation / size / order audit written to QA; flags never edit voxels |
+
+All tunables live in the single `P` dict at the top of the file, in millimeters
+and HU — nothing is voxel-count magic, so the same values transfer across
+resolutions.
+
+## 7. Running on small machines (low-memory mode)
+
+The single-process run peaks around ~9 GB on the large case. `scripts/run_lowmem.py`
+executes the **identical stages** in three separate processes with an on-disk
+checkpoint between them (results are byte-identical; stages are pure functions):
+
 ```bash
-bash scripts/download_data.sh
-# Open Main Image:   data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz
-# Open Segmentation: AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz
-# (only if check_pred_grid.py reports MATCH)
+python scripts/run_lowmem.py BDMAP_00000031 1   # stages 1, 2a-2d   (~4 GB peak)
+python scripts/run_lowmem.py BDMAP_00000031 2   # stage 2e
+python scripts/run_lowmem.py BDMAP_00000031 3   # stages 2f, 2g + audit + write
+# -> out_v9/BDMAP_00000031/..., reports/v9/BDMAP_00000031_postprocessing_qa.json
 ```
 
-## Colab (inference)
-Open `notebooks/BodyMaps_RA_warmup.ipynb` in Colab (GPU runtime). It fetches data and
-checkpoint directly from cs.jhu.edu, sets up the pinned python=3.9 env, runs inference,
-and walks through the official warm-up tutorial steps.
+Copy `out_v9/<case>/` into `AbdomenAtlasDemoPredict_refined/<case>/` if you want
+to update the canonical folder (that is exactly how the committed result was
+produced).
+
+## 8. Verifying and visualizing results
+
+**Independent audit** (also used for the before/ShapeKit/ours table):
+
+```bash
+python scripts/audit_predictions.py --pred_dir AbdomenAtlasDemoPredict_refined --report reports/audit_refined.json
+```
+
+**Full-resolution spinous diagnosis** — the tool that caught the error class the
+1.4 mm galleries missed. Renders native-resolution posterior/oblique/midsagittal
+views, traces every spinous blade to its root attachment, and computes the
+upward-violation meter (any corridor bone wearing the label of a *lower*
+vertebra is anatomically impossible):
+
+```bash
+python scripts/diag_blades.py \
+    data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz \
+    AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz RAW \
+    AbdomenAtlasDemoPredict_refined/BDMAP_00000031/combined_labels.nii.gz v9 \
+    my_outdir --lo L3 --hi T7
+# -> A/B/C/D/E figure set + blade_root_table.json (per-level verdicts + upv cm3)
+```
+
+**3D galleries** (5 angles + per-vertebra sheets; overview only — ~1.4 mm
+downsampled for speed, use `diag_blades.py` for fine verification):
+
+```bash
+python scripts/render_3d_views.py BDMAP_00000031 \
+    AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz \
+    AbdomenAtlasDemoPredict_refined/BDMAP_00000031/combined_labels.nii.gz \
+    visualizations
+```
+
+**Interface metrics** (planarity / contact area per adjacent pair):
+
+```bash
+python scripts/interface_metrics.py data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.gz \
+    AbdomenAtlasDemoPredict_refined/BDMAP_00000031/combined_labels.nii.gz
+```
+
+**Stage-2g A/B harness** — apply the imbrication repair alone to any existing
+output and read its gate record without re-running the pipeline:
+
+```bash
+python scripts/test_2g_direct.py SEG.nii.gz CT.nii.gz OUT.nii.gz
+```
+
+## 9. Tests
+
+```bash
+python tests/test_arch_phantom.py
+```
+
+Builds a synthetic 3-level column (bodies, pedicles, laminae, long imbricated
+processes, thin facet bridges — ground truth by construction), scrambles the
+arch the way the model does, and requires the pedicle-root arch rebuild to
+restore it exactly. Gates the `hier` and `core` race modes (both must score
+1.000 per region) and prints `edt` / `uniform` as measured ablations. Also
+renders `reports/debug/phantom/arch_phantom.png`.
+
+## 10. QA reports — what every JSON means
+
+Every pipeline run writes `<case>_postprocessing_qa.json` with, per stage, what
+changed and why (all volumes in mm³/cm³):
+
+- `records` — stage 1/2a per-component decisions (kept / bridged / pooled / speck).
+- `suspects`, `bands` — why each band was (not) re-arbitrated; disc cut z's;
+  arch race mode + per-level root volumes; `badness_before_after` (audit gate);
+  `imbrication_upv_cm3_before_after` (blade-steal meter across the band edit).
+- `polish` — per-pair interface planarity before/after, accepted or reverted.
+- `smooth` — per-label Dice + volume drift of the bounded smoothing.
+- `reclaim_cm3_by_level`, `envelope` — pool reclamation and the envelope
+  accounting (dropped / recolored / added-beyond-raw, the last ≈ 0 by design).
+- `multiview` — stage 2e flips per pair + revert record.
+- `skeleton` — stage 2f record: masscut and badcut-piece meters before/after,
+  per-level volume deltas.
+- `imbrication` — stage 2g record: upv before/after (total and per level),
+  changed cm³, gate values, per-level deltas; `reverted_all: true` on the case
+  that needed no repair.
+- `imbrication_upv_cm3` — final post-everything meter value.
+- `audit_before` / `audit_after` + `audit_rows_after` — the independent audit.
+
+The current run's reports live in `reports/v9/`; the top-level
+`reports/BDMAP_*_postprocessing_qa.json` mirror the latest accepted run.
+
+## 11. Method studies (why the pipeline looks the way it does)
+
+Two documented studies capture the failure-driven development — each failed
+method was implemented, measured, auto-reverted by the gates, and kept in the
+record:
+
+- [`documentation_v8/README.md`](documentation_v8/README.md) — split facet
+  nodules and fused blades. Fixed-threshold skeletons, 3D saddle races, and
+  three flavors of temporal chaining all leak on ankylosed anatomy (measured);
+  per-piece core-integrity surgery (stage 2f) survives.
+- [`documentation_v9/README.md`](documentation_v9/README.md) — the spinous
+  one-down chain: why distance races hand every imbricated blade to the
+  vertebra below, why no thickness signal can sever a DISH interspinous fusion
+  sheet (the multi-scale "hier" race measured *worse*, 0.33 → 7.68 cm³), and
+  how the caudal-only consecutive-slice flow (stage 2g) resolves it
+  (3.15 → 0.21 cm³, all five reported shifts fixed at full resolution).
+
+Read them in order — v9 builds directly on v8's meters and lessons.
+
+## 12. Version history
+
+| version | what changed | evidence |
+|---|---|---|
+| v1–v2 | evidence triage, island guard, disc-aware band re-arbitration, oblique arc-length cuts, interface regularization | reports/figures/refinement |
+| v3–v4 | interface polish (HU-valley), bounded SDT smoothing, planarity metrics | docs/refinement_v3_plan.md |
+| v5 | posterior arch rebuilt from pedicle roots (waist-severed two-tier race); phantom test | tests/test_arch_phantom.py |
+| v6 | envelope reclamation of dropped raw-labeled bone (axial-ring vote + geodesic link) | documentation_v8 fig 06 |
+| v7 | multiview waist-severed recoloring (stage 2e) in a shear-straightened frame | v7 figures |
+| v8 | per-piece core-integrity surgery (stage 2f); badcut/masscut meters | documentation_v8 |
+| **v9 (current)** | spinous imbrication repair (stage 2g, caudal flow); upward-violation meter; full-res verification tooling | documentation_v9, visualizations/debug_spinous |
+
+`AbdomenAtlasDemoPredict_refined/<case>/combined_labels.nii.gz` is always the
+newest version; `combined_labels_v*.nii.gz` preserve the lineage.
+
+## 13. Troubleshooting
+
+- **MemoryError / OOM killed** on the big case → use the phased driver
+  ([§7](#7-running-on-small-machines-low-memory-mode)); it is byte-identical.
+- **ITK-SNAP overlay looks shifted** → run `scripts/check_pred_grid.py`; if it
+  reports MATCH (it does for this data), open segmentation *without* resampling.
+- **Different colors for the same vertebra between raw and ShapeKit** → id
+  remapping, not an error (see [§14](#14-label-id-reference)).
+- **Inference hangs at start on HPC** → the 720 MB checkpoint is loading over
+  NFS; wait, don't Ctrl-C. Caches are kept under `$HOME/tmp` because some nodes
+  have a full `/tmp`.
+- **ShapeKit exceeds the 3 h interactive limit** → it is CPU-only and slow on
+  the large case; use `scripts/sbatch_shapekit.sh`.
+- **`git gc` warnings about tmp_obj files** after working through the Cowork
+  mount → harmless leftovers (the mount forbids unlink); a plain `git gc`
+  cleans them. The `_to_delete/` folder is gitignored trash — empty it manually.
+- **Re-running only the last stage** on an existing output → `scripts/test_2g_direct.py`
+  (stage 2g) or `scripts/run_lowmem.py <case> 3` from a phase-2 checkpoint.
+
+## 14. Label-id reference
+
+`combined_labels.nii.gz` uses SuPreM / TotalSegmentator vertebra ids, **bottom-up**:
+
+| id | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | … | 17 | 18 | … | 24 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| vertebra | L5 | L4 | L3 | L2 | L1 | T12 | T11 | T10 | T9 | T8 | … | T1 | C7 | … | C1 |
+
+Per-mask files (`segmentations/vertebrae_*.nii.gz`) are binary and unambiguous.
+ShapeKit's combined output rewrites the same anatomy to AbdomenAtlas ids 26–49;
+audits and per-mask files are unaffected, but ITK-SNAP palettes will color the
+same vertebra differently between the two combined files.
+
+---
+
+*Contact: Abhijit Das (aj.das.research@gmail.com). Task spec by the JHU BodyMaps
+lab; SuPreM and ShapeKit are the lab's upstream projects, cloned (gitignored)
+under `third_party/` by the setup scripts.*
