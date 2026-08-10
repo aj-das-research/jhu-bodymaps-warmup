@@ -1,4 +1,0 @@
-https://hpc.mbzuai.ac.ae/wiki/policies.html
-https://hpc.mbzuai.ac.ae/wiki/camd/slurm.html
-https://research.mbzuai.ac.ae/hpc
-https://slurm.schedmd.com/srun.html

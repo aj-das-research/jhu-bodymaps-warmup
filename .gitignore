@@ -17,3 +17,4 @@ __pycache__/
 # Report source (kept out of git; rendered on Overleaf)
 paper/
 paper_folder.tar.gz
+hpc guide/
