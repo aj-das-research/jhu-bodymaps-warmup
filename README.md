@@ -1,23 +1,75 @@
-# JHU BodyMaps RA Warm-up — Vertebrae Segmentation, Audit, and Evidence-Edited Refinement
+<p align="center">
+  <img src="logos/medos-logo-png-f.png" alt="MedOS" height="96">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="logos/mbzuai-logo-png.png" alt="MBZUAI" height="72">
+</p>
 
-Warm-up deliverable for the BodyMaps Research Assistant task (SuPreM "Apply to
-Vertebrae Segmentation", official spec: [docs/official_warmup_spec.md](docs/official_warmup_spec.md)).
+<h1 align="center">ShapeKit-Pro</h1>
 
-The project runs the lab's pretrained Swin UNETR on the two AbdomenAtlasDemo CT
-scans, audits the vertebra label errors, runs ShapeKit as the standing
-post-processing baseline, and then fixes the errors with our own single-file,
-CPU-only, evidence-edited refinement pipeline — **`postprocessing_vertebrae.py`**,
-the submission deliverable at the repo root.
+<p align="center"><b>Anatomy-aware, evidence-gated repair of vertebra labels in CT segmentations.<br>
+Recolors what the model got wrong. Never deletes real bone. CPU-only, one file.</b></p>
 
-**Headline result** (identical parameters on both cases, no per-case tuning):
+---
 
-| case | raw SuPreM output | ShapeKit baseline | ours (`AbdomenAtlasDemoPredict_refined/`) |
+Segmentation models label vertebrae well until anatomy gets hard: scoliosis,
+collapsed discs, DISH/ankylosis, and steeply overlapping spinous processes make
+them fragment labels, misplace whole levels, and paint one vertebra's bone with
+its neighbor's color. Delete-only cleanup tools (like the ShapeKit baseline
+this project is named after, and goes beyond) remove the noise but also remove
+real bone — and cannot give a mislabeled process back to its true owner.
+
+**ShapeKit-Pro** (`postprocessing_vertebrae.py`, a single ~2k-line CPU-only
+file) takes the model's prediction plus the CT and *repairs the labels in
+place*: the raw prediction is the outer envelope, the CT is the only editor,
+and every stage carries its own defect meter and reverts itself if it cannot
+prove improvement. Validated on the two AbdomenAtlasDemo CT cases with SuPreM
+Swin UNETR predictions as input, against ShapeKit as the standing baseline —
+with identical parameters on both cases, no per-case tuning:
+
+| case | raw model output | ShapeKit (delete-only baseline) | **ShapeKit-Pro** |
 |---|---|---|---|
-| BDMAP_00000006 (clean patient) | 10 fragmented labels, 1 ordering violation | clean, but **deletes** real C1 bone | all clean, every CT-certified bone voxel preserved |
-| BDMAP_00000031 (sick patient: scoliosis + DISH/ankylosis) | 21 fragmented labels, L1 at 23 cm³ vs ~60 cm³ neighbors, spinous processes mislabeled across T7..L2 | 0 fragmented but L1 **worsens** to 11.6 cm³ | all clean; L1 restored to ~64 cm³ at detected disc planes; every spinous process re-attached to its own vertebra (upward-violation 3.15 → 0.21 cm³) |
+| BDMAP_00000006 (clean anatomy) | 10 fragmented labels, 1 ordering violation | clean, but **deletes** real C1 bone | all clean, every CT-certified bone voxel preserved |
+| BDMAP_00000031 (scoliosis + DISH/ankylosis) | 21 fragmented labels, L1 at 23 cm³ vs ~60 cm³ neighbors, spinous processes mislabeled across T7..L2 | 0 fragmented but L1 **worsens** to 11.6 cm³ | all clean; L1 restored to ~64 cm³ at detected disc planes; every spinous process re-attached to its own vertebra (upward-violation 3.15 → 0.21 cm³) |
 
-Final verification with the independent audit: `reports/audit_refined.json` —
+Independent audit of the shipped output (`reports/audit_refined.json`):
 **0 fragmented, 0 empty, 0 ordering violations across both cases.**
+
+---
+
+## Showcase
+
+**Five 3D views, raw model output (top) vs ShapeKit-Pro (bottom) — the hard case.**
+Fragments are re-owned, L1 (cyan) is restored to full size at the detected disc
+planes, and the posterior elements read as one clean vertebra per level:
+
+<img src="visualizations/BDMAP_00000031_column_5views.png" width="100%">
+
+**The hardest error class, before and after — full resolution.** On this fused,
+scoliotic spine the model (left) painted every spinous process with a mixture
+of its own and the next level's label; ShapeKit-Pro (right) traces each blade
+to its root attachment and carries the correct label to the tip — bands mark
+each vertebra's trusted body span, arrows mark the measured blade roots:
+
+<img src="visualizations/debug_spinous/final_v9/C_midsag_slab_fullres.png" width="100%">
+
+**Built-in physics meters find what eyes miss.** A spinous process can droop
+below its vertebra but can never reach *above* it — so corridor bone wearing a
+lower level's label is anatomically impossible. The meter paints exactly those
+voxels red (left: an intermediate version carrying 3.16 cm³ of impossible
+volume; the shipped output measures 0.21 cm³) and gates the repair stage:
+
+<img src="visualizations/debug_spinous/E_violation_overlay.png" width="100%">
+
+**Posterior view at native resolution, raw vs repaired**, where the
+one-level-down spinous chain is resolved:
+
+<img src="visualizations/debug_spinous/final_v9/A_posterior_fullres.png" width="100%">
+
+More: per-vertebra isolation sheets in [`visualizations/`](visualizations/),
+the complete diagnostic figure sets with measurement tables in
+[`visualizations/debug_spinous/`](visualizations/debug_spinous/), and the two
+method studies in [`documentation_v8/`](documentation_v8/README.md) and
+[`documentation_v9/`](documentation_v9/README.md).
 
 ---
 
@@ -27,13 +79,13 @@ Final verification with the independent audit: `reports/audit_refined.json` —
 2. [Requirements](#2-requirements)
 3. [Repository map](#3-repository-map)
 4. [Getting the data](#4-getting-the-data)
-5. [Reproducing everything, phase by phase](#5-reproducing-everything-phase-by-phase)
-6. [The refinement pipeline (the deliverable)](#6-the-refinement-pipeline-the-deliverable)
+5. [Reproducing everything, step by step](#5-reproducing-everything-step-by-step)
+6. [How ShapeKit-Pro works](#6-how-shapekit-pro-works)
 7. [Running on small machines (low-memory mode)](#7-running-on-small-machines-low-memory-mode)
 8. [Verifying and visualizing results](#8-verifying-and-visualizing-results)
 9. [Tests](#9-tests)
 10. [QA reports — what every JSON means](#10-qa-reports--what-every-json-means)
-11. [Method studies (why the pipeline looks the way it does)](#11-method-studies-why-the-pipeline-looks-the-way-it-does)
+11. [Method studies (why the tool looks the way it does)](#11-method-studies-why-the-tool-looks-the-way-it-does)
 12. [Version history](#12-version-history)
 13. [Troubleshooting](#13-troubleshooting)
 14. [Label-id reference](#14-label-id-reference)
@@ -42,7 +94,7 @@ Final verification with the independent audit: `reports/audit_refined.json` —
 
 ## 1. Quickstart (view the results in 2 minutes)
 
-The **refined segmentations are already committed** — you do not need to run
+The **repaired segmentations are already committed** — you do not need to run
 anything to inspect the result:
 
 ```bash
@@ -59,20 +111,18 @@ To overlay on the CT in **ITK-SNAP** (needs the CT, which is not in git — see
 3. Compare with the raw model output by swapping in
    `AbdomenAtlasDemoPredict/BDMAP_00000031/combined_labels.nii.gz`.
 
-No CT at hand? Pre-rendered before/after galleries are in
-[`visualizations/`](visualizations/) (five 3D view angles + one-row-per-vertebra
-sheets, raw vs refined, both cases), and full-resolution debug renders of the
-hardest region are in [`visualizations/debug_spinous/`](visualizations/debug_spinous/).
+No CT at hand? The [showcase above](#showcase) and the galleries in
+[`visualizations/`](visualizations/) are pre-rendered from exactly these files.
 
 Version-tagged copies (`combined_labels_v8.nii.gz`, `combined_labels_v9.nii.gz`,
 …) sit next to each `combined_labels.nii.gz` so any historical stage of the
-refinement can be loaded side-by-side. `combined_labels.nii.gz` **always equals
-the newest version** (currently v9). `AbdomenAtlasDemoPredict_refined.tar.gz` is
+tool can be loaded side-by-side. `combined_labels.nii.gz` **always equals the
+newest version** (currently v9). `AbdomenAtlasDemoPredict_refined.tar.gz` is
 the same folder as one archive.
 
 ## 2. Requirements
 
-The refinement pipeline is **CPU-only** and needs five packages:
+ShapeKit-Pro is **CPU-only** and needs five packages:
 
 ```bash
 pip install numpy scipy nibabel scikit-image connected-components-3d
@@ -84,33 +134,34 @@ pip install numpy scipy nibabel scikit-image connected-components-3d
 - Runtime (2 CPU cores): BDMAP_00000006 ≈ 2 min; BDMAP_00000031 ≈ 30 min
   (0.9×0.9×0.7 mm whole-spine volume, 1394 slices).
 
-GPU is only needed for the *inference* phase that produces the raw predictions
+GPU is only needed for the *inference* step that produces the raw predictions
 (already committed under `AbdomenAtlasDemoPredict/`), so most users never need it.
 
 ## 3. Repository map
 
 ```
-postprocessing_vertebrae.py          THE DELIVERABLE - single-file refinement pipeline
-                                     (stages 1, 2a-2g, 3 + audit; ~100 KB, heavily documented)
+postprocessing_vertebrae.py          SHAPEKIT-PRO - the single-file tool
+                                     (stages 1, 2a-2g, 3 + audit; heavily documented)
 
-AbdomenAtlasDemoPredict/             raw SuPreM inference output (input to the pipeline)
-AbdomenAtlasDemoPredict_shapekit/    ShapeKit baseline output (Phase B)
-AbdomenAtlasDemoPredict_refined/     OUR refined output (Phase C result; v-tagged history inside)
+AbdomenAtlasDemoPredict/             raw SuPreM inference output (input to the tool)
+AbdomenAtlasDemoPredict_shapekit/    ShapeKit baseline output (comparison)
+AbdomenAtlasDemoPredict_refined/     SHAPEKIT-PRO output (v-tagged history inside)
 AbdomenAtlasDemoPredict_refined.tar.gz   same as the folder, single archive
 
 data/                                (gitignored) demo CTs + model checkpoint - scripts/download_data.sh
+logos/                               MedOS + MBZUAI logos
 
 scripts/
   download_data.sh                   fetch demo CTs + 720 MB checkpoint (idempotent, resumes)
   setup_env_hpc.sh                   HPC: conda env 'suprem' + third_party/SuPreM clone
-  run_inference_hpc.sh               HPC: official --customize inference -> AbdomenAtlasDemoPredict/
+  run_inference_hpc.sh               HPC: --customize inference -> AbdomenAtlasDemoPredict/
   setup_shapekit_hpc.sh              HPC: conda env 'shapekit' + third_party/ShapeKit clone
   run_shapekit_hpc.sh                ShapeKit baseline (CPU), interactive
   sbatch_shapekit.sh                 ShapeKit as a Slurm batch job (large case > 3 h)
   audit_predictions.py               independent audit: volumes / components / SIZE / ORDER flags
   check_pred_grid.py                 CT-vs-prediction grid check (safe ITK-SNAP overlay?)
   compare_audits.py                  before-vs-after audit diff
-  run_lowmem.py                      run the SAME pipeline in 3 memory-bounded phases
+  run_lowmem.py                      run the SAME tool in 3 memory-bounded phases
   run_stagedump.py                   phase 1 with per-stage checkpoints (debugging)
   run_2bonly.py                      stages 1-2b only, prints band-gate telemetry
   test_2g_direct.py                  A/B harness: apply stage 2g alone to an existing output
@@ -127,7 +178,7 @@ tests/test_arch_phantom.py           synthetic 3-level phantom gating the arch r
 
 reports/
   audit_before.json / audit_shapekit.json / audit_refined.json   the three-way comparison
-  BDMAP_*_postprocessing_qa.json     full per-case QA emitted by the pipeline
+  BDMAP_*_postprocessing_qa.json     full per-case QA emitted by the tool
   v9/                                QA of the current (v9) run incl. every stage record
   *_interface_metrics.json           interface planarity metrics
   figures/                           refinement + raw-vs-shapekit figures
@@ -141,12 +192,10 @@ visualizations/                      3D galleries (raw vs refined, both cases)
 documentation_v8/                    method study: split nodules / fused blades (stage 2f)
 documentation_v9/                    method study: the spinous one-down chain (stage 2g)
 
-docs/official_warmup_spec.md         the official task, transcribed
-docs/JHU_BodyMaps_RA_Prep_Guide.md   research briefing
-docs/refinement_v3_plan.md           early design notes (historical)
+docs/                                background notes and historical design plans
 configs/shapekit_vertebrae.yaml      ShapeKit config used for the baseline
-notebooks/BodyMaps_RA_warmup.ipynb   Colab path: env + inference + audit end-to-end
-hpc guide/                           general CIAI cluster notes (salloc, conda, batch)
+notebooks/BodyMaps_RA_warmup.ipynb   Colab notebook: env + inference end-to-end
+hpc guide/                           general cluster notes (salloc, conda, batch)
 third_party/                         (gitignored) upstream SuPreM / ShapeKit clones
 ```
 
@@ -161,17 +210,17 @@ bash scripts/download_data.sh
 #    data/supervised_suprem_swinunetr_2100.pth   (720 MB checkpoint, inference only)
 ```
 
-It resumes partial downloads and skips finished extraction, so re-running is safe.
-The CTs are required for the refinement pipeline (it reads HU values); the
-checkpoint is required only to re-run inference.
+It resumes partial downloads and skips finished extraction, so re-running is
+safe. The CTs are required by ShapeKit-Pro (it reads HU values); the checkpoint
+is required only to re-run inference.
 
-## 5. Reproducing everything, phase by phase
+## 5. Reproducing everything, step by step
 
-Already-committed artifacts let you start at any phase. Full chain:
+Already-committed artifacts let you start at any step. Full chain:
 
-### Phase 0 — inference (GPU; skip if `AbdomenAtlasDemoPredict/` is enough)
+### Step 1 — inference (GPU; skip if `AbdomenAtlasDemoPredict/` is enough)
 
-On the CIAI cluster ([hpc guide/README.md](hpc%20guide/README.md) for salloc etc.):
+On a Slurm cluster ([hpc guide/README.md](hpc%20guide/README.md) for salloc etc.):
 
 ```bash
 salloc -p long --qos=gpu-debug-qos --gres=gpu:1 --cpus-per-task=8 --mem=64G -t 03:00:00
@@ -184,7 +233,7 @@ Do **not** Ctrl-C during checkpoint load — it can look idle for minutes on NFS
 Or use Colab: open `notebooks/BodyMaps_RA_warmup.ipynb` with a GPU runtime; it
 downloads data, builds the pinned python=3.9 env and runs the same inference.
 
-### Phase A — audit the raw predictions (CPU)
+### Step 2 — audit the raw predictions (CPU)
 
 ```bash
 python scripts/audit_predictions.py --pred_dir AbdomenAtlasDemoPredict --report reports/audit_before.json
@@ -196,7 +245,7 @@ The audit flags, per vertebra: FRAGMENTED (multiple components), EMPTY, SIZE
 The grid check confirms CT and predictions share a voxel grid (they do), so
 ITK-SNAP overlays need no resampling.
 
-### Phase B — ShapeKit baseline (CPU, long)
+### Step 3 — ShapeKit baseline (CPU, long)
 
 ```bash
 bash scripts/setup_shapekit_hpc.sh
@@ -205,11 +254,12 @@ bash scripts/run_shapekit_hpc.sh                          # small case: interact
 python scripts/compare_audits.py --before reports/audit_before.json --after reports/audit_shapekit.json
 ```
 
-Finding: ShapeKit removes fragment speckles but, being delete-only, also removes
-real bone (C1 tips, case 6) and deepens the L1 mass error on the sick case.
-Note: ShapeKit rewrites label ids to AbdomenAtlas 26–49 (see [§14](#14-label-id-reference)).
+Finding: ShapeKit removes fragment speckles but, being delete-only, also
+removes real bone (C1 tips, case 6) and deepens the L1 mass error on the sick
+case. Note: ShapeKit rewrites label ids to AbdomenAtlas 26–49 (see
+[§14](#14-label-id-reference)).
 
-### Phase C — our refinement (CPU; **the deliverable**)
+### Step 4 — ShapeKit-Pro
 
 ```bash
 python postprocessing_vertebrae.py \
@@ -224,11 +274,11 @@ python scripts/compare_audits.py --before reports/audit_before.json --after repo
 Outputs per case: `combined_labels.nii.gz` + `segmentations/vertebrae_*.nii.gz`
 (24 masks) + `reports/<case>_postprocessing_qa.json` (full stage-by-stage QA).
 
-## 6. The refinement pipeline (the deliverable)
+## 6. How ShapeKit-Pro works
 
 **Design rule #1 — the envelope rule:** the raw prediction is the outer
-boundary. The pipeline *recolors* voxels inside it and never grows beyond it;
-real bone inside the envelope is never deleted, only re-owned.
+boundary. The tool *recolors* voxels inside it and never grows beyond it; real
+bone inside the envelope is never deleted, only re-owned.
 
 **Design rule #2 — the CT is the only editor; anatomy audits.** Every edit is
 justified by image evidence (HU corridors, disc-plane minima, bone thickness);
@@ -236,8 +286,8 @@ anatomical priors decide only *where to look* and *when to revert*.
 
 **Design rule #3 — every stage carries its own defect meter and reverts
 itself** when the meter, the audit, or a bounded-shift check degrades. On the
-clean case most late stages self-revert (correctly: nothing to fix); on the sick
-case the same parameters repair it. No per-case tuning anywhere.
+clean case most late stages self-revert (correctly: nothing to fix); on the
+sick case the same parameters repair it. No per-case tuning anywhere.
 
 Stage order as wired in `process_case` (each stage's docstring in
 `postprocessing_vertebrae.py` carries the full reasoning and the measured
@@ -262,9 +312,10 @@ resolutions.
 
 ## 7. Running on small machines (low-memory mode)
 
-The single-process run peaks around ~9 GB on the large case. `scripts/run_lowmem.py`
-executes the **identical stages** in three separate processes with an on-disk
-checkpoint between them (results are byte-identical; stages are pure functions):
+The single-process run peaks around ~9 GB on the large case.
+`scripts/run_lowmem.py` executes the **identical stages** in three separate
+processes with an on-disk checkpoint between them (results are byte-identical;
+stages are pure functions):
 
 ```bash
 python scripts/run_lowmem.py BDMAP_00000031 1   # stages 1, 2a-2d   (~4 GB peak)
@@ -273,23 +324,23 @@ python scripts/run_lowmem.py BDMAP_00000031 3   # stages 2f, 2g + audit + write
 # -> out_v9/BDMAP_00000031/..., reports/v9/BDMAP_00000031_postprocessing_qa.json
 ```
 
-Copy `out_v9/<case>/` into `AbdomenAtlasDemoPredict_refined/<case>/` if you want
-to update the canonical folder (that is exactly how the committed result was
-produced).
+Copy `out_v9/<case>/` into `AbdomenAtlasDemoPredict_refined/<case>/` if you
+want to update the canonical folder (that is exactly how the committed result
+was produced).
 
 ## 8. Verifying and visualizing results
 
-**Independent audit** (also used for the before/ShapeKit/ours table):
+**Independent audit** (also used for the before/ShapeKit/ShapeKit-Pro table):
 
 ```bash
 python scripts/audit_predictions.py --pred_dir AbdomenAtlasDemoPredict_refined --report reports/audit_refined.json
 ```
 
-**Full-resolution spinous diagnosis** — the tool that caught the error class the
-1.4 mm galleries missed. Renders native-resolution posterior/oblique/midsagittal
-views, traces every spinous blade to its root attachment, and computes the
-upward-violation meter (any corridor bone wearing the label of a *lower*
-vertebra is anatomically impossible):
+**Full-resolution spinous diagnosis** — the tool that caught the error class
+the 1.4 mm galleries missed. Renders native-resolution posterior/oblique/
+midsagittal views, traces every spinous blade to its root attachment, and
+computes the upward-violation meter (any corridor bone wearing the label of a
+*lower* vertebra is anatomically impossible):
 
 ```bash
 python scripts/diag_blades.py \
@@ -318,7 +369,7 @@ python scripts/interface_metrics.py data/AbdomenAtlasDemo/BDMAP_00000031/ct.nii.
 ```
 
 **Stage-2g A/B harness** — apply the imbrication repair alone to any existing
-output and read its gate record without re-running the pipeline:
+output and read its gate record without re-running the tool:
 
 ```bash
 python scripts/test_2g_direct.py SEG.nii.gz CT.nii.gz OUT.nii.gz
@@ -332,15 +383,15 @@ python tests/test_arch_phantom.py
 
 Builds a synthetic 3-level column (bodies, pedicles, laminae, long imbricated
 processes, thin facet bridges — ground truth by construction), scrambles the
-arch the way the model does, and requires the pedicle-root arch rebuild to
-restore it exactly. Gates the `hier` and `core` race modes (both must score
-1.000 per region) and prints `edt` / `uniform` as measured ablations. Also
-renders `reports/debug/phantom/arch_phantom.png`.
+arch the way models do, and requires the pedicle-root arch rebuild to restore
+it exactly. Gates the `hier` and `core` race modes (both must score 1.000 per
+region) and prints `edt` / `uniform` as measured ablations. Also renders
+`reports/debug/phantom/arch_phantom.png`.
 
 ## 10. QA reports — what every JSON means
 
-Every pipeline run writes `<case>_postprocessing_qa.json` with, per stage, what
-changed and why (all volumes in mm³/cm³):
+Every run writes `<case>_postprocessing_qa.json` with, per stage, what changed
+and why (all volumes in mm³/cm³):
 
 - `records` — stage 1/2a per-component decisions (kept / bridged / pooled / speck).
 - `suspects`, `bands` — why each band was (not) re-arbitrated; disc cut z's;
@@ -362,7 +413,7 @@ changed and why (all volumes in mm³/cm³):
 The current run's reports live in `reports/v9/`; the top-level
 `reports/BDMAP_*_postprocessing_qa.json` mirror the latest accepted run.
 
-## 11. Method studies (why the pipeline looks the way it does)
+## 11. Method studies (why the tool looks the way it does)
 
 Two documented studies capture the failure-driven development — each failed
 method was implemented, measured, auto-reverted by the gates, and kept in the
@@ -405,19 +456,18 @@ newest version; `combined_labels_v*.nii.gz` preserve the lineage.
 - **Different colors for the same vertebra between raw and ShapeKit** → id
   remapping, not an error (see [§14](#14-label-id-reference)).
 - **Inference hangs at start on HPC** → the 720 MB checkpoint is loading over
-  NFS; wait, don't Ctrl-C. Caches are kept under `$HOME/tmp` because some nodes
-  have a full `/tmp`.
+  NFS; wait, don't Ctrl-C. Caches are kept under `$HOME/tmp` because some
+  nodes have a full `/tmp`.
 - **ShapeKit exceeds the 3 h interactive limit** → it is CPU-only and slow on
   the large case; use `scripts/sbatch_shapekit.sh`.
-- **`git gc` warnings about tmp_obj files** after working through the Cowork
-  mount → harmless leftovers (the mount forbids unlink); a plain `git gc`
-  cleans them. The `_to_delete/` folder is gitignored trash — empty it manually.
-- **Re-running only the last stage** on an existing output → `scripts/test_2g_direct.py`
-  (stage 2g) or `scripts/run_lowmem.py <case> 3` from a phase-2 checkpoint.
+- **Re-running only the last stage** on an existing output →
+  `scripts/test_2g_direct.py` (stage 2g) or `scripts/run_lowmem.py <case> 3`
+  from a phase-2 checkpoint.
 
 ## 14. Label-id reference
 
-`combined_labels.nii.gz` uses SuPreM / TotalSegmentator vertebra ids, **bottom-up**:
+`combined_labels.nii.gz` uses SuPreM / TotalSegmentator vertebra ids,
+**bottom-up**:
 
 | id | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | … | 17 | 18 | … | 24 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -430,6 +480,22 @@ same vertebra differently between the two combined files.
 
 ---
 
-*Contact: Abhijit Das (aj.das.research@gmail.com). Task spec by the JHU BodyMaps
-lab; SuPreM and ShapeKit are the lab's upstream projects, cloned (gitignored)
-under `third_party/` by the setup scripts.*
+## Supported by
+
+<p align="center">
+  <img src="logos/medos-logo-png-f.png" alt="MedOS" height="88">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="logos/mbzuai-logo-png.png" alt="MBZUAI" height="64">
+</p>
+
+<p align="center">ShapeKit-Pro is developed with the support of <b>MedOS</b> and the
+<b>Mohamed bin Zayed University of Artificial Intelligence (MBZUAI)</b>.</p>
+
+## Contact
+
+**Abhijit Das** — [abhijit.das@mbzuai.ac.ae](mailto:abhijit.das@mbzuai.ac.ae) ·
+[aj.das.research@gmail.com](mailto:aj.das.research@gmail.com)
+
+*SuPreM and ShapeKit are upstream projects cloned (gitignored) under
+`third_party/` by the setup scripts; AbdomenAtlasDemo is their public demo
+dataset.*
