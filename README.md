@@ -48,6 +48,15 @@ labels were mixed and shifted one level down:
   <img src="visualizations/spin_raw_vs_shapekitpro.gif" width="430" alt="Rotating 3D comparison, raw vs ShapeKit-Pro">
 </p>
 
+**Take them apart.** The five hardest vertebrae (T10–L2) spin assembled,
+separate into an exploded view so every level reads clearly, zoom in for
+detail, flip to a top-down view of each vertebra, and reassemble — raw on
+the left, ShapeKit-Pro on the right throughout:
+
+<p align="center">
+  <img src="visualizations/explode_raw_vs_shapekitpro.gif" width="560" alt="Exploded-view rotating comparison, raw vs ShapeKit-Pro">
+</p>
+
 **Five 3D views, raw model output (top) vs ShapeKit-Pro (bottom) — the hard case.**
 Fragments are re-owned, L1 (cyan) is restored to full size at the detected disc
 planes, and the posterior elements read as one clean vertebra per level:
