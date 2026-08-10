@@ -40,6 +40,14 @@ Independent audit of the shipped output (`reports/audit_refined.json`):
 
 ## Showcase
 
+**Spin it.** Raw model output vs ShapeKit-Pro through a full 360° turn — the
+whole spine on top, and below it the T9–L2 spinous region where the raw
+labels were mixed and shifted one level down:
+
+<p align="center">
+  <img src="visualizations/spin_raw_vs_shapekitpro.gif" width="430" alt="Rotating 3D comparison, raw vs ShapeKit-Pro">
+</p>
+
 **Five 3D views, raw model output (top) vs ShapeKit-Pro (bottom) — the hard case.**
 Fragments are re-owned, L1 (cyan) is restored to full size at the detected disc
 planes, and the posterior elements read as one clean vertebra per level:
