@@ -90,6 +90,77 @@ the complete diagnostic figure sets with measurement tables in
 method studies in [`documentation_v8/`](documentation_v8/README.md) and
 [`documentation_v9/`](documentation_v9/README.md).
 
+### Results at a glance
+
+Structural audit (flags count vertebrae out of 24 per case; components count
+connected pieces across all 24 masks, anatomical target 24):
+
+| case | method | fragmented | ordering | size | components |
+|---|---|---:|---:|---:|---:|
+| BDMAP_00000006 | raw SuPreM | 10 | 1 | 0 | 45 |
+| BDMAP_00000006 | ShapeKit | 0 | 0 | 0 | 24 |
+| BDMAP_00000006 | **ShapeKit-Pro** | **0** | **0** | **0** | **24** |
+| BDMAP_00000031 | raw SuPreM | 21 | 0 | 1 | 122 |
+| BDMAP_00000031 | ShapeKit | 0 | 0 | 2 | 24 |
+| BDMAP_00000031 | **ShapeKit-Pro** | **0** | **0** | **0** | **24** |
+
+The numbers that tell the story on the hard case:
+
+| metric (BDMAP_00000031) | raw | ShapeKit | **ShapeKit-Pro** |
+|---|---:|---:|---:|
+| L1 volume (cm³, neighbors ≈ 60) | 23.3 | 11.6 | **62.9** |
+| T9 volume (cm³) | 35.9 | 23.9 | **43.9** |
+| T10 volume (cm³) | 55.6 | 73.8 | **51.2** |
+| spinous upward-violation (cm³, impossible volume) | 0.02* | n/a | **0.21** (pipeline peak 3.15) |
+| mixed thick-core pieces (badcut) | 47 | n/a | **31** |
+| volume added beyond the raw envelope (cm³) | 0 | 0 | **≈ 0 by construction** |
+
+\* raw scores near zero on this one-sided meter because its error mode is
+downward overreach, which the meter deliberately does not count; the raw
+blade errors show in the renders and in the badcut meter instead.
+
+<p align="center">
+  <img src="visualizations/plots/plot_audit_flags.png" width="88%" alt="Audit flags per method">
+</p>
+
+Per-level volume on the hard case: ShapeKit deepens the L1 anomaly while
+inflating T10; ShapeKit-Pro restores the smooth cervical-to-lumbar gradient:
+
+<p align="center">
+  <img src="visualizations/plots/plot_volumes_case31.png" width="92%" alt="Per-level volumes, case 31">
+</p>
+
+The two purpose-built defect meters, each before and after the stage that
+owns it, plus the mechanism comparison that selected the final algorithm
+(the thickness-based ablation made the defect worse, which is exactly why
+the caudal-flow design won):
+
+<p align="center">
+  <img src="visualizations/plots/plot_meter_progression.png" width="88%" alt="Meter progression">
+</p>
+<p align="center">
+  <img src="visualizations/plots/plot_upv_story.png" width="46%" alt="Upward-violation by mechanism">
+</p>
+
+### The development record in one table
+
+Nine mechanisms were implemented for the two hardest subproblems; eight were
+rejected by the pipeline's own gates, each with the number that killed it
+(full accounts in [`documentation_v8/`](documentation_v8/README.md) and
+[`documentation_v9/`](documentation_v9/README.md)):
+
+| # | mechanism | measured failure |
+|---|---|---|
+| 1 | fixed-threshold skeleton decomposition | fused spine is one 452 cm³ component; mass-cut 4k → 54k mm² |
+| 2 | 3D saddle race (−EDT watershed) | arch swaps through fused discs: T10 −23.6 cm³, T9 +26.5 |
+| 3 | per-slice race + IoU chaining | chains break at split/merge events between slices |
+| 4 | containment chaining | percolates one label across levels |
+| 5 | first-come slice propagation | locks early mistakes in place |
+| 6 | label-set reachability chaining | leaks through one-way conduits: T7 +9.6 cm³ of rib chains |
+| 7 | multi-scale thickest-first peel race | upward-violation 0.33 → 7.68 cm³, worse than the race it replaced |
+| 8 | second pass of core surgery | badcut 36 → 51; one pass is the fixed point |
+| **9** | **caudal-flow corridor re-derivation (kept)** | **upward-violation 3.15 → 0.21 cm³, badcut down, audits clean** |
+
 ---
 
 ## Table of contents
